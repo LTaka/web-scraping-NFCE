@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+resultado.csv
+textos_capturados/
+*.png
+
+.DS_Store

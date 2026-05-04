@@ -36,7 +36,9 @@ Comandos equivalentes:
 docker build -t webscarping-bot .
 docker run --rm -it \
   -e DISPLAY=$DISPLAY \
+  -e XAUTHORITY=/tmp/.docker.xauth \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v "${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.docker.xauth:ro" \
   -v "$(pwd)":/app \
   -w /app \
   webscarping-bot \
@@ -46,6 +48,7 @@ docker run --rm -it \
 Observacao:
 
 - como o projeto usa `pyautogui`, o container precisa acessar a sessao grafica do host
+- em ambientes como GDM/Pop!_OS, o cookie X11 pode ficar em `XAUTHORITY=/run/user/.../gdm/Xauthority`; o script ja monta esse arquivo automaticamente
 - se o `Ctrl+C` ou `Ctrl+V` nao funcionar no container, rode antes `xhost +local:docker`
 
 ## 2. Habilitar audio do microfone
@@ -112,6 +115,30 @@ Para rodar de verdade:
 ```bash
 python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar
 ```
+
+## 5.1 Como gerar o CSV a partir do SPED
+
+Para ler um arquivo `SPED EFD`, filtrar os registros `C100` de modelo `65` e gerar o CSV base do robo:
+
+```bash
+python ler_sped_c100.py arquivo-sped.txt --saida exemplo_entrada.csv
+```
+
+O CSV gerado sai com estas colunas:
+
+- `chave`
+- `numero`
+- `serie`
+- `cod_sit`
+- `data`
+- `valor_total`
+- `tem_itens`
+- `tem_combustivel`
+- `combustiveis`
+- `litros_total`
+- `valor_itens_combustivel`
+
+Quando o SPED tiver registros `C170`, o script usa esses itens para preencher `tem_itens` e os campos de combustivel. Se o arquivo tiver apenas `C100` e `C190`, esses campos ficam vazios ou com `nao`.
 
 ## 6. Colunas adicionadas no CSV de saida
 

@@ -1,74 +1,103 @@
 # Robo por UF
 
-Estrutura inicial para:
+Projeto para:
 
-- rodar em `venv`
-- instalar dependencias
-- ler um CSV
-- identificar a UF pelos 2 primeiros digitos da chave da primeira coluna
-- abrir o link correto da UF
-- executar uma rotina especifica por estado
+- instalar rapido em maquina nova
+- rodar local com `venv`
+- usar Docker no Linux com X11 quando fizer sentido
+- ler um CSV e executar a rotina por UF
 - completar o CSV com os dados capturados
 
-## 1. Criar e ativar o ambiente
+## 1. Recomendacao pratica
+
+Use o modo local com `venv` como caminho principal.
+
+Motivo:
+
+- `pyautogui` controla mouse e teclado da maquina real
+- OCR e clipboard funcionam melhor fora do container
+- evita erros de `Xlib.xauth`, `XAUTHORITY` e permissao de display
+
+Deixe o Docker como alternativa secundaria para Linux com X11.
+
+## 2. Instalacao rapida no Linux
+
+Em Ubuntu/Debian:
 
 ```bash
-chmod +x setup_venv.sh
-./setup_venv.sh
+chmod +x install_linux.sh
+./install_linux.sh
 source .venv/bin/activate
 ```
 
-Esse passo instala o ambiente base sem depender de microfone.
+Esse script:
 
-## Docker
+- instala dependencias do sistema
+- cria `.venv`
+- instala dependencias Python
 
-Para rodar em Docker com acesso ao display do host:
-
-```bash
-chmod +x docker-run.sh
-xhost +local:docker
-./docker-run.sh exemplo_entrada.csv resultado.csv executar
-```
-
-Comandos equivalentes:
-
-```bash
-docker build -t webscarping-bot .
-docker run --rm -it \
-  -e DISPLAY=$DISPLAY \
-  -e XAUTHORITY=/tmp/.docker.xauth \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -v "${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.docker.xauth:ro" \
-  -v "$(pwd)":/app \
-  -w /app \
-  webscarping-bot \
-  python3 processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar
-```
-
-Observacao:
-
-- como o projeto usa `pyautogui`, o container precisa acessar a sessao grafica do host
-- em ambientes como GDM/Pop!_OS, o cookie X11 pode ficar em `XAUTHORITY=/run/user/.../gdm/Xauthority`; o script ja monta esse arquivo automaticamente
-- se o `Ctrl+C` ou `Ctrl+V` nao funcionar no container, rode antes `xhost +local:docker`
-
-## 2. Habilitar audio do microfone
-
-Se voce precisar usar `ouvir_microfone()`, instale antes as bibliotecas do sistema:
-
-```bash
-sudo apt-get install portaudio19-dev python3-dev tesseract-ocr tesseract-ocr-por
-```
-
-Depois instale o pacote opcional:
+Se quiser audio de microfone:
 
 ```bash
 source .venv/bin/activate
 pip install -r requirements-audio.txt
 ```
 
-## 3. Onde configurar os links por estado
+## 3. Instalacao rapida no Windows
 
-Edite [config_ufs.py](/home/linx/Documentos/www/webscarping/config_ufs.py).
+No Prompt de Comando:
+
+```bat
+install_windows.bat
+```
+
+Depois ative:
+
+```bat
+.venv\Scripts\activate.bat
+```
+
+No Windows o script instala a parte Python. Para OCR, ainda precisa instalar o Tesseract manualmente:
+
+- `https://github.com/UB-Mannheim/tesseract/wiki`
+- durante a instalacao, inclua o idioma `Portuguese`
+
+Se quiser audio de microfone:
+
+```bat
+pip install -r requirements-audio.txt
+```
+
+## 4. Docker no Linux
+
+Use Docker apenas se:
+
+- voce estiver em Linux
+- sua sessao grafica tiver X11 disponivel
+- quiser isolar o ambiente
+
+Rodar:
+
+```bash
+chmod +x docker-run.sh
+./docker-run.sh exemplo_entrada.csv resultado.csv executar
+```
+
+O script:
+
+- libera acesso local do Docker ao X11 com `xhost +local:docker`
+- monta `/tmp/.X11-unix`
+- executa o bot dentro do container
+
+Limites importantes:
+
+- em Wayland puro, WSL e Windows o Docker grafico tende a dar problema
+- se aparecer erro de display, prefira o modo local com `venv`
+- este projeto nao depende de Docker para funcionar
+
+## 5. Onde configurar os links por estado
+
+Edite [config_ufs.py](/home/linx/Documentos/www/web-scraping-NFCE/config_ufs.py).
 
 Hoje o arquivo ja vem com estes exemplos:
 
@@ -84,11 +113,11 @@ Cada UF tem:
 - nome da rotina
 - se usa audio ou nao
 
-## 4. Onde criar a rotina de cada estado
+## 6. Onde criar a rotina de cada estado
 
-Edite [rotinas_estaduais.py](/home/linx/Documentos/www/webscarping/rotinas_estaduais.py).
+Edite [rotinas_estaduais.py](/home/linx/Documentos/www/web-scraping-NFCE/rotinas_estaduais.py).
 
-Ja deixei duas classes prontas:
+Classes de exemplo:
 
 - `RotinaMGPadrao`
 - `RotinaESComAudio`
@@ -101,9 +130,9 @@ Em cada uma voce vai colocar:
 - leitura OCR da tela
 - captura de audio, quando precisar
 
-## 5. Como processar o CSV
+## 7. Como processar o CSV
 
-Exemplo:
+Exemplo em modo simulacao:
 
 ```bash
 source .venv/bin/activate
@@ -113,10 +142,11 @@ python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo simular
 Para rodar de verdade:
 
 ```bash
+source .venv/bin/activate
 python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar
 ```
 
-## 5.1 Como gerar o CSV a partir do SPED
+## 8. Como gerar o CSV a partir do SPED
 
 Para ler um arquivo `SPED EFD`, filtrar os registros `C100` de modelo `65` e gerar o CSV base do robo:
 
@@ -140,22 +170,41 @@ O CSV gerado sai com estas colunas:
 
 Quando o SPED tiver registros `C170`, o script usa esses itens para preencher `tem_itens` e os campos de combustivel. Se o arquivo tiver apenas `C100` e `C190`, esses campos ficam vazios ou com `nao`.
 
-## 6. Colunas adicionadas no CSV de saida
+## 9. Colunas adicionadas no CSV de saida
 
 O script preserva as colunas originais e adiciona:
 
 - `uf`
 - `url_consulta`
 - `status_robo`
-- `texto_capturado`
-- `texto_audio`
+- `arquivo_texto_capturado`
 - `observacao`
+- `nota_numero`
+- `nota_emissao`
+- `item_descricao`
+- `item_qtde`
+- `item_un`
+- `item_vl_unit`
+- `item_vl_total`
 
-## 7. Arquivos principais
+## 10. Dependencias do projeto
 
-- [bot_visual.py](/home/linx/Documentos/www/webscarping/bot_visual.py): funcoes base de automacao, OCR e audio
-- [config_ufs.py](/home/linx/Documentos/www/webscarping/config_ufs.py): links e configuracao por estado
-- [rotinas_estaduais.py](/home/linx/Documentos/www/webscarping/rotinas_estaduais.py): roteiro de cada UF
-- [processar_csv.py](/home/linx/Documentos/www/webscarping/processar_csv.py): le o CSV e chama a rotina certa
-- [mouse_posicao.py](/home/linx/Documentos/www/webscarping/mouse_posicao.py): mostra a posicao do mouse para descobrir coordenadas
-- [requirements-audio.txt](/home/linx/Documentos/www/webscarping/requirements-audio.txt): dependencias opcionais para captura do microfone
+Python:
+
+- [requirements.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements.txt)
+- [requirements-audio.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-audio.txt)
+
+Sistema Linux/Ubuntu:
+
+- [requirements-sistema.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-sistema.txt)
+
+## 11. Arquivos principais
+
+- [bot_visual.py](/home/linx/Documentos/www/web-scraping-NFCE/bot_visual.py): funcoes base de automacao, OCR e audio
+- [config_ufs.py](/home/linx/Documentos/www/web-scraping-NFCE/config_ufs.py): links e configuracao por estado
+- [rotinas_estaduais.py](/home/linx/Documentos/www/web-scraping-NFCE/rotinas_estaduais.py): roteiro de cada UF
+- [processar_csv.py](/home/linx/Documentos/www/web-scraping-NFCE/processar_csv.py): le o CSV e chama a rotina certa
+- [mouse_posicao.py](/home/linx/Documentos/www/web-scraping-NFCE/mouse_posicao.py): mostra a posicao do mouse para descobrir coordenadas
+- [install_linux.sh](/home/linx/Documentos/www/web-scraping-NFCE/install_linux.sh): instalacao completa no Linux
+- [install_windows.bat](/home/linx/Documentos/www/web-scraping-NFCE/install_windows.bat): instalacao base no Windows
+- [docker-run.sh](/home/linx/Documentos/www/web-scraping-NFCE/docker-run.sh): execucao Docker simplificada no Linux

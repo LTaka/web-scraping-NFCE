@@ -1,0 +1,15 @@
+# Pacotes de sistema necessarios no Linux/Ubuntu para o projeto funcionar.
+# Instalar com:
+#   sudo apt-get update
+#   sudo apt-get install -y $(tr '\n' ' ' < requirements-sistema.txt)
+
+python3-tk
+scrot
+xclip
+xsel
+tesseract-ocr
+tesseract-ocr-por
+
+# Necessarios quando for usar captura de audio do microfone
+portaudio19-dev
+python3-dev

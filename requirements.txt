@@ -1,3 +1,16 @@
+# Dependencias Python obrigatorias do projeto.
+# Instalar com:
+#   pip install -r requirements.txt
+#
+# Dependencias de sistema necessarias fora do pip:
+# - tkinter: pacote do sistema `python3-tk`
+# - OCR Tesseract: `tesseract-ocr` e `tesseract-ocr-por`
+# - clipboard para PyAutoGUI/Pyperclip: `xclip` e/ou `xsel`
+# - screenshot no Linux: `scrot`
+#
+# Dependencias opcionais:
+# - audio de microfone: ver `requirements-audio.txt` e instalar `portaudio19-dev`
+
 PyAutoGUI==0.9.54
 Pyperclip==1.9.0
 Pillow==11.2.1

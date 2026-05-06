@@ -119,13 +119,17 @@ class RotinaESPadrao(RotinaEstado):
             print(f"ES tentativa consulta -> {tentativa}")
             if tentativa > 1:
                 print("ES clique extra antes do botao -> x=2473, y=452")
-                self.bot.mover_mouse_humano(2473, 452)
-                self.bot.esperar(0.4)
+                # self.bot.mover_mouse_humano(2473, 452) segunda tela  27pol
 
+                self.bot.mover_mouse_humano(1190, 492)
+                self.bot.esperar(0.4)
             if tentativa == 1:
-                x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 442, 479)
+                # x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 442, 479) segunda tela  27pol
+                x_botao, y_botao = self.bot.ponto_aleatorio(376, 495, 476, 512)
             else:
-                x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 523, 550)
+                # x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 523, 550)  segunda tela  27pol
+                x_botao, y_botao = self.bot.ponto_aleatorio(393, 492, 548, 588)
+      
             print(f"ES botao consultar -> x={x_botao}, y={y_botao}")
             self.bot.mover_mouse_humano(x_botao, y_botao)
             self.bot.esperar(0.4)
@@ -165,7 +169,9 @@ class RotinaESPadrao(RotinaEstado):
         }
 
     def _preencher_chave_es(self, chave: str):
-        x_campo, y_campo = self.bot.ponto_aleatorio(1672, 2419, 349, 418)
+        # x_campo, y_campo = self.bot.ponto_aleatorio(1672, 2419, 349, 418) segunda tela 27pol
+
+        x_campo, y_campo = self.bot.ponto_aleatorio(393, 1138, 387, 452)
         print(f"ES campo chave -> x={x_campo}, y={y_campo}")
         self.bot.mover_mouse_humano(x_campo, y_campo)
         self.bot.esperar(0.4)

@@ -64,27 +64,73 @@ class RotinaEstado(ABC):
 
 
 class RotinaMGPadrao(RotinaEstado):
+    TEXTO_SUCESSO_MG = "produtos e servicos"
+
     def _executar_passos(self, chave: str, linha: dict) -> dict:
-        self.bot.esperar(2)
+        self._preencher_chave_mg(chave)
+        self.bot.esperar(10)
 
-        # Ajuste os cliques e campos abaixo conforme o site de MG.
-        # Exemplo:
-        # self.bot.clicar(400, 320)
-        # Point(x=1919, y=156)
-        # Point(x=2441, y=402)
-        # self.bot.escrever(chave)
-        # self.bot.pressionar("enter")
-        # texto = self.bot.ler_area_da_tela(300, 250, 900, 500)
+        texto = ""
+        for tentativa in range(1, 6):
+            print(f"MG tentativa consulta -> {tentativa}")
+            if tentativa > 1:
+                print("MG clique adicional antes do botao -> x=1919, y=156")
+                self.bot.mover_mouse_humano(1919, 156)
+                self.bot.esperar(0.4)
+                self.bot.clicar(1919, 156)
+                self.bot.esperar(1.5)
 
-        texto = self.bot.extrair_texto_pagina("captura_mg")
+            if tentativa == 1:
+                x_botao, y_botao = self.bot.ponto_aleatorio(2380, 2460, 380, 425)
+            else:
+                x_botao, y_botao = self.bot.ponto_aleatorio(2380, 2460, 430, 485)
+
+            print(f"MG botao consultar -> x={x_botao}, y={y_botao}")
+            self.bot.mover_mouse_humano(x_botao, y_botao)
+            self.bot.esperar(0.4)
+            self.bot.clicar(x_botao, y_botao)
+            self.bot.esperar(6)
+
+            print("MG focando pagina antes de selecionar tudo")
+            self.bot.focar_pagina()
+            self.bot.esperar(0.5)
+
+            texto = self.bot.selecionar_tudo_e_copiar().strip()
+            if texto:
+                print(f"MG texto copiado -> {len(texto)} caracteres")
+                print("MG previa texto copiado:")
+                print(texto[:500])
+            else:
+                print("MG texto copiado vazio nesta tentativa")
+
+            if self.TEXTO_SUCESSO_MG in " ".join(texto.split()).lower():
+                break
+
+            print("MG texto ainda sem 'Produtos e Serviços', tentando novamente")
+        else:
+            print("MG nao confirmou pelo clipboard, caindo para OCR")
+            texto = ""
+
+        if not texto:
+            texto = self.bot.extrair_texto_pagina("captura_mg")
         return {
             "status_robo": "ok",
             "uf": self.config.uf,
             "url_consulta": self.config.url,
             "texto_capturado": texto,
             "texto_audio": "",
-            "observacao": "Preencha os cliques da rotina MG em rotinas_estaduais.py.",
+            "observacao": "Rotina MG validada pelo texto copiado contendo 'Produtos e Servicos'.",
         }
+
+    def _preencher_chave_mg(self, chave: str):
+        x_campo, y_campo = self.bot.ponto_aleatorio(1860, 2445, 380, 425)
+        print(f"MG campo chave -> x={x_campo}, y={y_campo}")
+        self.bot.mover_mouse_humano(x_campo, y_campo)
+        self.bot.esperar(0.4)
+        self.bot.clicar(x_campo, y_campo)
+        self.bot.esperar(0.3)
+        self.bot.atalho("ctrl", "a")
+        self.bot.colar_texto(chave)
 
 
 class RotinaESPadrao(RotinaEstado):

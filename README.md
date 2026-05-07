@@ -1,3 +1,14 @@
+# SPED TRANSFORMA EM CSV
+
+```bash
+source .venv/bin/activate
+python ler_sped_c100.py "24093799000176-0026978650021-20210501-20210531-0-6C559E76740D29FD9C7C180291390FC122F472C5-SPED-EFD.txt" --saida exemplo_entrada.csv
+```
+ou 
+` ``bash
+python3 ler_sped_c100.py "24093799000176-0026978650021-20210501-20210531-0-6C559E76740D29FD9C7C180291390FC122F472C5-SPED-EFD.txt" --saida exemplo_entrada.csv
+```
+
 # Robo por UF
 
 Projeto para:
@@ -15,7 +26,7 @@ Use o modo local com `venv` como caminho principal.
 Motivo:
 
 - `pyautogui` controla mouse e teclado da maquina real
-- OCR e clipboard funcionam melhor fora do container
+- OCR e clipboard funciona m melhor fora do container
 - evita erros de `Xlib.xauth`, `XAUTHORITY` e permissao de display
 
 Deixe o Docker como alternativa secundaria para Linux com X11.

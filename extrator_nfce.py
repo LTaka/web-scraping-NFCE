@@ -1,5 +1,10 @@
+import argparse
+import csv
 import re
 from decimal import Decimal
+from pathlib import Path
+
+from config_ufs import obter_config_por_chave
 
 
 COMBUSTIVEIS = [
@@ -9,6 +14,25 @@ COMBUSTIVEIS = [
     "ALCOOL",
     "ÁLCOOL",
     "GNV",
+]
+
+CAMPOS_SAIDA = [
+    "chave",
+    "uf",
+    "url_consulta",
+    "arquivo_texto_capturado",
+    "nota_numero",
+    "nota_emissao",
+    "tem_itens",
+    "tem_combustivel",
+    "combustiveis",
+    "litros_total",
+    "valor_itens_combustivel",
+    "item_descricao",
+    "item_qtde",
+    "item_un",
+    "item_vl_unit",
+    "item_vl_total",
 ]
 
 
@@ -29,6 +53,7 @@ def dinheiro_br(valor: Decimal) -> str:
 def extrair_campos_nfce(texto: str) -> dict:
     texto = texto or ""
     itens = _extrair_itens(texto)
+    chave_acesso = _extrair_chave_acesso(texto)
 
     itens_combustivel = [
         item for item in itens
@@ -52,6 +77,7 @@ def extrair_campos_nfce(texto: str) -> dict:
     })
 
     return {
+        "chave": chave_acesso,
         "nota_numero": _extrair_primeiro(texto, [
             r"Numero:\s*([0-9.\-\/]+)",
             r"Numero\s*([0-9.\-\/]+)",
@@ -87,6 +113,19 @@ def _extrair_primeiro(texto: str, padroes: list[str]) -> str:
         if match:
             return " ".join(match.group(1).split()).strip()
     return ""
+
+
+def _extrair_chave_acesso(texto: str) -> str:
+    match = re.search(
+        r"Chave\s+de\s+acesso:\s*([0-9\s]+)",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+
+    digitos = re.sub(r"\D", "", match.group(1))
+    return digitos if len(digitos) == 44 else ""
 
 
 def _extrair_itens(texto: str) -> list[dict]:
@@ -186,3 +225,103 @@ def _deduplicar_itens(itens: list[dict]) -> list[dict]:
 def _normalizar_quebras(texto: str) -> str:
     texto = texto.replace("\r\n", "\n").replace("\r", "\n")
     return re.sub(r"\n{2,}", "\n", texto)
+
+
+def gerar_linhas_csv_de_arquivo(arquivo_texto: Path) -> list[dict[str, str]]:
+    texto = arquivo_texto.read_text(encoding="utf-8", errors="ignore")
+    campos_nfce = extrair_campos_nfce(texto)
+    chave = campos_nfce["chave"] or arquivo_texto.stem
+    itens = campos_nfce["itens"]
+
+    linha_base = {
+        "chave": chave,
+        "uf": "",
+        "url_consulta": "",
+        "arquivo_texto_capturado": str(arquivo_texto),
+        "nota_numero": campos_nfce["nota_numero"],
+        "nota_emissao": campos_nfce["nota_emissao"],
+        "tem_itens": campos_nfce["tem_itens"],
+        "tem_combustivel": campos_nfce["tem_combustivel"],
+        "combustiveis": campos_nfce["combustiveis"],
+        "litros_total": campos_nfce["litros_total"],
+        "valor_itens_combustivel": campos_nfce["valor_itens_combustivel"],
+        "item_descricao": "",
+        "item_qtde": "",
+        "item_un": "",
+        "item_vl_unit": "",
+        "item_vl_total": "",
+    }
+
+    try:
+        config = obter_config_por_chave(chave)
+        linha_base["uf"] = config.uf
+        linha_base["url_consulta"] = config.url
+    except Exception:
+        pass
+
+    if not itens:
+        return [linha_base]
+
+    linhas = []
+    for item in itens:
+        linha = dict(linha_base)
+        linha["item_descricao"] = item.get("item_descricao", "")
+        linha["item_qtde"] = item.get("item_qtde", "")
+        linha["item_un"] = item.get("item_un", "")
+        linha["item_vl_unit"] = item.get("item_vl_unit", "")
+        linha["item_vl_total"] = item.get("item_vl_total", "")
+        linhas.append(linha)
+
+    return linhas
+
+
+def listar_arquivos_texto(entrada: Path) -> list[Path]:
+    if entrada.is_file():
+        return [entrada]
+    return sorted(arquivo for arquivo in entrada.glob("*.txt") if arquivo.is_file())
+
+
+def gerar_csv_de_textos_capturados(entrada: Path, saida: Path, delimitador: str) -> int:
+    arquivos = listar_arquivos_texto(entrada)
+    linhas_saida = []
+
+    for arquivo in arquivos:
+        linhas_saida.extend(gerar_linhas_csv_de_arquivo(arquivo))
+
+    with saida.open("w", encoding="utf-8", newline="") as fp:
+        writer = csv.DictWriter(fp, fieldnames=CAMPOS_SAIDA, delimiter=delimitador)
+        writer.writeheader()
+        writer.writerows(linhas_saida)
+
+    return len(arquivos)
+
+
+def criar_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Le arquivos .txt capturados de NFC-e e gera um CSV com os campos extraidos.",
+    )
+    parser.add_argument(
+        "entrada",
+        help="Arquivo .txt ou pasta com os textos capturados.",
+    )
+    parser.add_argument(
+        "--saida",
+        default="resultado.csv",
+        help="Caminho do CSV de saida.",
+    )
+    parser.add_argument(
+        "--delimitador",
+        default=",",
+        help="Delimitador do CSV de saida.",
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    args = criar_parser().parse_args()
+    quantidade = gerar_csv_de_textos_capturados(
+        entrada=Path(args.entrada),
+        saida=Path(args.saida),
+        delimitador=args.delimitador,
+    )
+    print(f"CSV gerado com {quantidade} arquivo(s): {args.saida}")

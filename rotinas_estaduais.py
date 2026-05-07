@@ -64,13 +64,12 @@ class RotinaEstado(ABC):
 
 
 class RotinaMGPadrao(RotinaEstado):
-    TEXTO_SUCESSO_MG = "produtos e servicos"
+    URLS_RESULTADO_MG = ("http://portalsped.fazenda.mg.gov.br/portalnfce/sistema/consultaarg.xhtml")
 
     def _executar_passos(self, chave: str, linha: dict) -> dict:
         self._preencher_chave_mg(chave)
         self.bot.esperar(10)
 
-        texto = ""
         for tentativa in range(1, 6):
             print(f"MG tentativa consulta -> {tentativa}")
             if tentativa > 1:
@@ -89,27 +88,31 @@ class RotinaMGPadrao(RotinaEstado):
             self.bot.mover_mouse_humano(x_botao, y_botao)
             self.bot.esperar(0.4)
             self.bot.clicar(x_botao, y_botao)
-            self.bot.esperar(6)
+            self.bot.esperar(4)
 
-            print("MG focando pagina antes de selecionar tudo")
-            self.bot.focar_pagina()
-            self.bot.esperar(0.5)
-
-            texto = self.bot.selecionar_tudo_e_copiar().strip()
-            if texto:
-                print(f"MG texto copiado -> {len(texto)} caracteres")
-                print("MG previa texto copiado:")
-                print(texto[:500])
-            else:
-                print("MG texto copiado vazio nesta tentativa")
-
-            if self.TEXTO_SUCESSO_MG in " ".join(texto.split()).lower():
+            url_atual = self.bot.obter_url_atual()
+            print(f"MG url atual -> {url_atual}")
+            if any(url_resultado.lower() in url_atual.lower() for url_resultado in self.URLS_RESULTADO_MG):
                 break
 
-            print("MG texto ainda sem 'Produtos e Serviços', tentando novamente")
+            print("MG URL ainda nao foi para a pagina de resultado, tentando novamente")
         else:
-            print("MG nao confirmou pelo clipboard, caindo para OCR")
-            texto = ""
+            raise TimeoutError(
+                "A consulta do MG nao mudou para a URL de resultado apos 5 tentativas."
+            )
+
+        self.bot.esperar(6)
+        print("MG focando pagina antes de selecionar tudo")
+        self.bot.focar_pagina()
+        self.bot.esperar(0.5)
+
+        texto = self.bot.selecionar_tudo_e_copiar().strip()
+        if texto:
+            print(f"MG texto copiado -> {len(texto)} caracteres")
+            print("MG previa texto copiado:")
+            print(texto[:500])
+        else:
+            print("MG texto copiado vazio, caindo para OCR")
 
         if not texto:
             texto = self.bot.extrair_texto_pagina("captura_mg")
@@ -119,7 +122,7 @@ class RotinaMGPadrao(RotinaEstado):
             "url_consulta": self.config.url,
             "texto_capturado": texto,
             "texto_audio": "",
-            "observacao": "Rotina MG validada pelo texto copiado contendo 'Produtos e Servicos'.",
+            "observacao": "Rotina MG validada pela URL de resultado, no mesmo padrao do ES.",
         }
 
     def _preencher_chave_mg(self, chave: str):

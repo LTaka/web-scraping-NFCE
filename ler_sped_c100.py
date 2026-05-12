@@ -29,6 +29,8 @@ COMBUSTIVEIS = [
     "GNV",
 ]
 
+COD_SIT_PERMITIDOS = {"00", "01", "0"}
+
 
 @dataclass
 class ItemC170:
@@ -117,14 +119,17 @@ def parse_c100(partes: list[str]) -> NotaC100 | None:
         return None
 
     cod_mod = partes[5]
+    cod_sit = partes[6].strip()
     if cod_mod != "65":
+        return None
+    if cod_sit not in COD_SIT_PERMITIDOS:
         return None
 
     return NotaC100(
         chave=partes[9].strip(),
         numero=partes[8].strip(),
         serie=partes[7].strip(),
-        cod_sit=partes[6].strip(),
+        cod_sit=cod_sit,
         data=formatar_data_sped(partes[10].strip()),
         valor_total=parse_decimal(partes[12]),
     )
@@ -183,6 +188,24 @@ def escrever_csv(notas: list[NotaC100], arquivo_saida: Path, delimitador: str) -
             writer.writerow(nota.to_row())
 
 
+def resolver_arquivo_entrada(caminho: str) -> Path:
+    arquivo = Path(caminho)
+    if arquivo.exists():
+        return arquivo
+
+    nome = arquivo.name
+    if nome.endswith(".txt.txt"):
+        candidato = arquivo.with_name(nome[:-4])
+        if candidato.exists():
+            return candidato
+
+    raise FileNotFoundError(
+        f"Arquivo nao encontrado: {arquivo}. "
+        "Verifique o nome informado. Se o arquivo terminar com '.txt', "
+        "evite repetir a extensao como '.txt.txt'."
+    )
+
+
 def criar_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Le um arquivo SPED EFD e gera um CSV com notas C100 de modelo 65.",
@@ -203,5 +226,5 @@ def criar_parser() -> argparse.ArgumentParser:
 
 if __name__ == "__main__":
     args = criar_parser().parse_args()
-    notas = parse_sped(Path(args.entrada))
+    notas = parse_sped(resolver_arquivo_entrada(args.entrada))
     escrever_csv(notas, Path(args.saida), args.delimitador)

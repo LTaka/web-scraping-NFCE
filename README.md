@@ -46,6 +46,7 @@ Esse script:
 - instala dependencias do sistema
 - cria `.venv`
 - instala dependencias Python
+- instala o Firefox do Playwright
 
 Se quiser audio de microfone:
 
@@ -72,6 +73,8 @@ No Windows o script instala a parte Python. Para OCR, ainda precisa instalar o T
 
 - `https://github.com/UB-Mannheim/tesseract/wiki`
 - durante a instalacao, inclua o idioma `Portuguese`
+
+O instalador tambem baixa o navegador `Firefox` do Playwright.
 
 Se quiser audio de microfone:
 
@@ -204,6 +207,13 @@ Python:
 
 - [requirements.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements.txt)
 - [requirements-audio.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-audio.txt)
+
+Se for instalar manualmente o Playwright:
+
+```bash
+python3 -m pip install playwright
+python3 -m playwright install firefox
+```
 
 Sistema Linux/Ubuntu:
 

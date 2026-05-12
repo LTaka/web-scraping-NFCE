@@ -16,3 +16,4 @@ Pyperclip==1.9.0
 Pillow==11.2.1
 pytesseract==0.3.13
 SpeechRecognition==3.14.3
+playwright==1.54.0

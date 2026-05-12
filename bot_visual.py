@@ -119,6 +119,44 @@ class BotVisual:
     def ponto_aleatorio(self, x_min: int, x_max: int, y_min: int, y_max: int) -> tuple[int, int]:
         return random.randint(x_min, x_max), random.randint(y_min, y_max)
 
+    def escalar_ponto(self, x: int, y: int, largura_base: int, altura_base: int) -> tuple[int, int]:
+        largura_atual, altura_atual = pyautogui.size()
+        x_escalado = int(x * largura_atual / largura_base)
+        y_escalado = int(y * altura_atual / altura_base)
+        return x_escalado, y_escalado
+
+    def escalar_area(
+        self,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
+        largura_base: int,
+        altura_base: int,
+    ) -> tuple[int, int, int, int]:
+        x1, y1 = self.escalar_ponto(x_min, y_min, largura_base, altura_base)
+        x2, y2 = self.escalar_ponto(x_max, y_max, largura_base, altura_base)
+        return x1, x2, y1, y2
+
+    def ponto_aleatorio_escalado(
+        self,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
+        largura_base: int,
+        altura_base: int,
+    ) -> tuple[int, int]:
+        x1, x2, y1, y2 = self.escalar_area(
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            largura_base,
+            altura_base,
+        )
+        return self.ponto_aleatorio(x1, x2, y1, y2)
+
     def mover_e_clicar_em_area(
         self,
         x_min: int,

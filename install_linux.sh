@@ -15,8 +15,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 echo "Atualizando pip e instalando dependencias Python..."
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
+
+echo "Baixando navegador Firefox do Playwright..."
+python3 -m playwright install firefox
 
 echo
 echo "Instalacao concluida."

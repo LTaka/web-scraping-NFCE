@@ -17,11 +17,15 @@ call .venv\Scripts\activate.bat
 if errorlevel 1 exit /b 1
 
 echo Atualizando pip...
-python -m pip install --upgrade pip
+py -3 -m pip install --upgrade pip
 if errorlevel 1 exit /b 1
 
 echo Instalando dependencias Python...
-python -m pip install -r requirements.txt
+py -3 -m pip install -r requirements.txt
+if errorlevel 1 exit /b 1
+
+echo Baixando navegador Firefox do Playwright...
+py -3 -m playwright install firefox
 if errorlevel 1 exit /b 1
 
 echo.

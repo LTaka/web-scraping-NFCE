@@ -83,10 +83,12 @@ def extrair_campos_nfce(texto: str) -> dict:
             r"Numero\s*([0-9.\-\/]+)",
             r"N[uú]mero:\s*([0-9.\-\/]+)",
             r"N[uú]mero\s*([0-9.\-\/]+)",
+            r"Modelo\s+S[ée]rie\s+N[uú]mero\s+Data\s+Emiss[aã]o\s*(?:\n|\s)+\d+\s+\d+\s+([0-9]+)\s+[0-9]{2}/[0-9]{2}/[0-9]{4}",
         ]),
         "nota_emissao": _extrair_primeiro(texto, [
             r"Emissao:\s*([0-9]{2}/[0-9]{2}/[0-9]{4}[^\n\r]*)",
             r"Emiss[aã]o:\s*([0-9]{2}/[0-9]{2}/[0-9]{4}[^\n\r]*)",
+            r"Data\s+Emiss[aã]o\s*(?:\n|\s)+\d+\s+\d+\s+\d+\s+([0-9]{2}/[0-9]{2}/[0-9]{4}\s+[0-9:]{8})",
         ]),
         "itens": itens,
         "tem_itens": "sim" if itens else "nao",
@@ -130,6 +132,10 @@ def _extrair_chave_acesso(texto: str) -> str:
 
 def _extrair_itens(texto: str) -> list[dict]:
     texto_normalizado = _normalizar_quebras(texto)
+    itens = _extrair_itens_tabela_mg(texto_normalizado)
+    if itens:
+        return _deduplicar_itens(itens)
+
     linhas = [linha.strip() for linha in texto_normalizado.splitlines() if linha.strip()]
     itens = []
 
@@ -146,6 +152,49 @@ def _extrair_itens(texto: str) -> list[dict]:
         return _deduplicar_itens(itens)
 
     return _extrair_itens_texto_corrido(texto_normalizado)
+
+
+def _extrair_itens_tabela_mg(texto: str) -> list[dict]:
+    if "Produtos e Serviços" not in texto or "Valor(R$)" not in texto:
+        return []
+
+    linhas = [linha.strip() for linha in texto.splitlines() if linha.strip()]
+    capturando = False
+    itens = []
+    padrao_item = re.compile(
+        r"^\s*\d+\s+"
+        r"(?P<descricao>.+?)\s+"
+        r"(?P<qtde>\d+(?:[.,]\d+)?)\s+"
+        r"(?P<un>[A-Za-z]+)\s+"
+        r"R\$\s*(?P<vl_unit>\d+[.,]\d{2})\s+"
+        r"R\$\s*(?P<vl_total>\d+[.,]\d{2})\s*$"
+    )
+
+    for linha in linhas:
+        if "Número" in linha and "Valor(R$)" in linha:
+            capturando = True
+            continue
+
+        if not capturando:
+            continue
+
+        if linha.startswith("Situação atual:") or linha.startswith("Versão "):
+            break
+
+        match = padrao_item.match(linha)
+        if not match:
+            continue
+
+        itens.append({
+            "item_numero": linha.split()[0],
+            "item_descricao": " ".join(match.group("descricao").split()).strip(" -:"),
+            "item_qtde": match.group("qtde").replace(".", ","),
+            "item_un": match.group("un"),
+            "item_vl_unit": match.group("vl_unit"),
+            "item_vl_total": match.group("vl_total"),
+        })
+
+    return itens
 
 
 def _parse_bloco_item(bloco: str) -> dict | None:
@@ -207,6 +256,7 @@ def _deduplicar_itens(itens: list[dict]) -> list[dict]:
 
     for item in itens:
         chave = (
+            item.get("item_numero", ""),
             item.get("item_descricao", "").lower(),
             item.get("item_qtde", ""),
             item.get("item_un", "").lower(),

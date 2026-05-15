@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 
 from bot_visual import BotVisual
@@ -65,6 +66,15 @@ class RotinaEstado(ABC):
 
 class RotinaMGPadrao(RotinaEstado):
     TEXTO_SUCESSO_MG = "Produtos e Serviços"
+    CABECALHO_TABELA_MG = (
+        "Número",
+        "Descrição",
+        "Quantidade",
+        "Unidade Comercial",
+        "Valor Unitário",
+        "Valor(R$)",
+    )
+
     def _executar_passos(self, chave: str, linha: dict) -> dict:
         self._preencher_chave_mg(chave)
         self.bot.esperar(10)
@@ -101,12 +111,16 @@ class RotinaMGPadrao(RotinaEstado):
             else:
                 print("MG texto copiado vazio nesta tentativa")
 
-            if self._texto_tem_produtos_servicos(texto):
-                print("MG confirmou 'Produtos e Serviços' no texto copiado")
+            bloco_produtos = self._extrair_bloco_produtos_mg(texto)
+            if self._texto_tem_tabela_produtos_mg(texto):
+                print("MG confirmou cabecalho e itens de 'Produtos e Serviços' no texto copiado")
+                if bloco_produtos:
+                    print("MG bloco de produtos detectado:")
+                    print(bloco_produtos[:500])
                 self._reiniciar_aba_consulta()
                 break
 
-            print("MG texto ainda sem 'Produtos e Serviços', tentando novamente")
+            print("MG texto ainda sem a tabela de produtos de MG, tentando novamente")
         else:
             print("MG nao confirmou pelo clipboard, caindo para OCR")
             texto = ""
@@ -119,8 +133,9 @@ class RotinaMGPadrao(RotinaEstado):
             "url_consulta": self.config.url,
             "texto_capturado": texto,
             "texto_audio": "",
-            "observacao": "Rotina MG validada pelo texto copiado contendo 'Produtos e Servicos'.",
+            "observacao": "Rotina MG validada pelo texto copiado contendo a tabela de 'Produtos e Servicos'.",
         }
+
     def _preencher_chave_mg(self, chave: str):
         x_campo, y_campo = self.bot.ponto_aleatorio(265, 766, 392, 411)
         print(f"MG campo chave -> x={x_campo}, y={y_campo}")
@@ -151,6 +166,44 @@ class RotinaMGPadrao(RotinaEstado):
             self.bot.atualizar_pagina(self.config.url, espera=12)
 
         return self._executar_passos(chave, linha)
+
+    def _texto_tem_tabela_produtos_mg(self, texto: str) -> bool:
+        if not texto:
+            return False
+
+        texto_normalizado = texto.replace("\r\n", "\n").replace("\r", "\n")
+        if not all(cabecalho in texto_normalizado for cabecalho in self.CABECALHO_TABELA_MG):
+            return False
+
+        padrao_item = re.compile(
+            r"^\s*\d+\s+.+?\s+\d+(?:[.,]\d+)?\s+[A-Za-z]+\s+R\$\s*\d+[.,]\d{2}\s+R\$\s*\d+[.,]\d{2}\s*$"
+        )
+        return any(padrao_item.match(linha.strip()) for linha in texto_normalizado.splitlines())
+
+    def _extrair_bloco_produtos_mg(self, texto: str) -> str:
+        if not texto:
+            return ""
+
+        texto_normalizado = texto.replace("\r\n", "\n").replace("\r", "\n")
+        inicio = texto_normalizado.find("Produtos e Serviços")
+        if inicio < 0:
+            return ""
+
+        fim = texto_normalizado.find("Situação atual:", inicio)
+        if fim < 0:
+            fim = len(texto_normalizado)
+
+        bloco = texto_normalizado[inicio:fim].strip()
+        return bloco if "Valor(R$)" in bloco else ""
+
+    def _reiniciar_aba_consulta(self):
+        print("MG consulta concluida com sucesso, reiniciando a aba para a proxima chave")
+        self.bot.atalho("ctrl", "w")
+        self.bot.esperar(0.8)
+        self.bot.atalho("ctrl", "t")
+        self.bot.esperar(0.8)
+        self.bot.abrir_site(self.config.url, espera=12)
+        self.pagina_inicializada = True
 
 
 class RotinaESPadrao(RotinaEstado):
@@ -292,14 +345,6 @@ class RotinaBAComAudio(RotinaSPComAudio):
 
 class RotinaRJPadrao(RotinaESPadrao):
     pass
-
-def _reiniciar_aba_consulta(self):
-    print("MG consulta concluida com sucesso, reiniciando a aba para a proxima chave")
-    self.bot.atalho("ctrl", "w")
-    self.bot.esperar(0.8)
-    self.bot.atalho("ctrl", "t")
-    self.bot.esperar(0.8)
-    self.bot.abrir_site(self.config.url, espera=12)
 
 def criar_rotina(bot: BotVisual, config: ConfigUF, modo_execucao: str) -> RotinaEstado:
     rotinas = {

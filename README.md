@@ -160,6 +160,15 @@ source .venv/bin/activate
 python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar
 ```
 
+Se quiser repetir apenas as chaves que terminarem com `tem_itens=nao`:
+
+```bash
+source .venv/bin/activate
+python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar --repetir-sem-itens --max-tentativas-sem-itens 2
+```
+
+Esse modo refaz somente a consulta da chave atual quando o texto capturado nao gerar itens, sem reprocessar o lote inteiro.
+
 ## 8. Como gerar o CSV a partir do SPED
 
 Para ler um arquivo `SPED EFD`, filtrar os registros `C100` de modelo `65` e gerar o CSV base do robo:

@@ -6,12 +6,26 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 
 
 class RotinaEstado(ABC):
+    ESPERA_PREPARACAO_INICIAL = 5
+
     def __init__(self, bot: BotVisual, config: ConfigUF, modo_execucao: str):
         self.bot = bot
         self.config = config
         self.modo_execucao = modo_execucao
         self.pagina_inicializada = False
         self.primeira_execucao = True
+        self.preparacao_inicial_realizada = False
+
+    def _aguardar_preparacao_inicial(self):
+        if self.preparacao_inicial_realizada:
+            return
+
+        print(
+            f"Aguardando {self.ESPERA_PREPARACAO_INICIAL} segundos antes de iniciar a rotina "
+            f"da UF {self.config.uf}. Posicione a pagina correta."
+        )
+        self.bot.esperar(self.ESPERA_PREPARACAO_INICIAL)
+        self.preparacao_inicial_realizada = True
 
     def _aguardar_ou_falhar(self, *, contexto: str, textos_esperados: list[str] | None = None):
         carregou = self.bot.aguardar_pagina_carregar(
@@ -37,6 +51,8 @@ class RotinaEstado(ABC):
                 "texto_audio": "",
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
+
+        self._aguardar_preparacao_inicial()
 
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")
@@ -169,6 +185,7 @@ class RotinaMGPlaywright(RotinaEstado):
                 "observacao": "Rotina MG Playwright nao executada. Use --modo executar para rodar no navegador.",
             }
 
+        self._aguardar_preparacao_inicial()
         return self._executar_passos(chave, linha)
 
     def _executar_passos(self, chave: str, linha: dict) -> dict:
@@ -191,6 +208,8 @@ class RotinaMGPadrao(RotinaEstado):
                 "texto_audio": "",
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
+
+        self._aguardar_preparacao_inicial()
 
         if not self.pagina_inicializada:
             print(
@@ -313,6 +332,8 @@ class RotinaESPadrao(RotinaEstado):
                 "texto_audio": "",
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
+
+        self._aguardar_preparacao_inicial()
 
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")

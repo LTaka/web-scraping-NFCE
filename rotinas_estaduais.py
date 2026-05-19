@@ -6,12 +6,26 @@ from config_ufs import ConfigUF
 
 
 class RotinaEstado(ABC):
+    ESPERA_PREPARACAO_INICIAL = 5
+
     def __init__(self, bot: BotVisual, config: ConfigUF, modo_execucao: str):
         self.bot = bot
         self.config = config
         self.modo_execucao = modo_execucao
         self.pagina_inicializada = False
         self.primeira_execucao = True
+        self.preparacao_inicial_realizada = False
+
+    def _aguardar_preparacao_inicial(self):
+        if self.preparacao_inicial_realizada:
+            return
+
+        print(
+            f"Aguardando {self.ESPERA_PREPARACAO_INICIAL} segundos antes de iniciar a rotina "
+            f"da UF {self.config.uf}. Posicione a pagina correta."
+        )
+        self.bot.esperar(self.ESPERA_PREPARACAO_INICIAL)
+        self.preparacao_inicial_realizada = True
 
     def _aguardar_ou_falhar(self, *, contexto: str, textos_esperados: list[str] | None = None):
         carregou = self.bot.aguardar_pagina_carregar(
@@ -37,6 +51,8 @@ class RotinaEstado(ABC):
                 "texto_audio": "",
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
+
+        self._aguardar_preparacao_inicial()
 
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")
@@ -145,10 +161,16 @@ class RotinaMGPadrao(RotinaEstado):
         print(f"MG campo chave -> x={x_campo}, y={y_campo}")
         self.bot.mover_mouse_humano(x_campo, y_campo)
         self.bot.esperar(0.4)
+        self.bot.focar_pagina()
+        self.bot.esperar(1)
         self.bot.clicar(x_campo, y_campo)
-        self.bot.esperar(0.3)
+        self.bot.esperar(1)
         self.bot.atalho("ctrl", "a")
         self.bot.colar_texto(chave)
+
+    def _abrir_pagina_inicial_mg(self, espera: int = 12):
+        print(f"MG abrindo URL inicial fixa: {self.URL_INICIAL_MG}")
+        self.bot.abrir_site(self.URL_INICIAL_MG, espera=espera)
 
     def executar(self, chave: str, linha: dict) -> dict:
         if self.modo_execucao == "simular":
@@ -161,13 +183,15 @@ class RotinaMGPadrao(RotinaEstado):
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
 
+        self._aguardar_preparacao_inicial()
+
         if not self.pagina_inicializada:
-            print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")
-            self.bot.abrir_site(self.config.url)
+            print(f"Abrindo link da UF {self.config.uf} uma vez: {self.URL_INICIAL_MG}")
+            self._abrir_pagina_inicial_mg()
             self.pagina_inicializada = True
         else:
-            print(f"Atualizando pagina da UF {self.config.uf} para a proxima chave")
-            self.bot.atualizar_pagina(self.config.url, espera=12)
+            print(f"Reabrindo pagina inicial da UF {self.config.uf} para a proxima chave")
+            self._abrir_pagina_inicial_mg()
 
         return self._executar_passos(chave, linha)
 
@@ -210,10 +234,10 @@ class RotinaMGPadrao(RotinaEstado):
             self.bot.esperar(0.8)
             self.bot.atalho("ctrl", "t")
             self.bot.esperar(0.8)
-            self.bot.abrir_site(self.URL_INICIAL_MG, espera=12)
+            self._abrir_pagina_inicial_mg()
         else:
             print("MG nao caiu na pagina 500.xhtml, voltando para o link inicial e aguardando Enter")
-            self.bot.abrir_site(self.URL_INICIAL_MG, espera=3)
+            self._abrir_pagina_inicial_mg(espera=3)
             input("MG: pressione Enter para ir para a pagina inicial e continuar...")
 
         self.pagina_inicializada = True
@@ -232,6 +256,8 @@ class RotinaESPadrao(RotinaEstado):
                 "texto_audio": "",
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
+
+        self._aguardar_preparacao_inicial()
 
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")

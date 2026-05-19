@@ -15,9 +15,9 @@ class BotVisualStub:
 bot_visual_stub.BotVisual = BotVisualStub
 sys.modules.setdefault("bot_visual", bot_visual_stub)
 
-rotinas_stub = types.ModuleType("rotinas_estaduais_2")
+rotinas_stub = types.ModuleType("rotinas_estaduais")
 rotinas_stub.criar_rotina = lambda bot, config, modo: None
-sys.modules.setdefault("rotinas_estaduais_2", rotinas_stub)
+sys.modules.setdefault("rotinas_estaduais", rotinas_stub)
 
 import processar_csv
 

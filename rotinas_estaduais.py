@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 
 from bot_visual import BotVisual
@@ -64,56 +65,71 @@ class RotinaEstado(ABC):
 
 
 class RotinaMGPadrao(RotinaEstado):
-    URLS_RESULTADO_MG = ("http://portalsped.fazenda.mg.gov.br/portalnfce/sistema/consultaarg.xhtml")
+    URL_INICIAL_MG = "https://portalsped.fazenda.mg.gov.br/portalnfce/sistema/consultaarg.xhtml"
+    URL_ERRO_500_MG = "https://portalsped.fazenda.mg.gov.br/portalnfce/resourcelib/xhtml/erro/500.xhtml"
+    TEXTO_SUCESSO_MG = "Produtos e Serviços"
+    CABECALHO_TABELA_MG = (
+        "Número",
+        "Descrição",
+        "Quantidade",
+        "Unidade Comercial",
+        "Valor Unitário",
+        "Valor(R$)",
+    )
 
     def _executar_passos(self, chave: str, linha: dict) -> dict:
-        self._preencher_chave_mg(chave)
+        x_campo, y_campo = self.bot.ponto_aleatorio(265, 766, 392, 411)
+        self._preencher_chave_mg(chave, x_campo, y_campo)
         self.bot.esperar(10)
-
+        texto = ""
         for tentativa in range(1, 6):
             print(f"MG tentativa consulta -> {tentativa}")
             if tentativa > 1:
-                print("MG clique adicional antes do botao -> x=1919, y=156")
-                self.bot.mover_mouse_humano(1919, 156)
+                print("MG clique adicional antes do botao -> x=285, y=495")
+                self.bot.mover_mouse_humano(285, 495)
                 self.bot.esperar(0.4)
-                self.bot.clicar(1919, 156)
+                self.bot.clicar(285, 495)
                 self.bot.esperar(1.5)
 
             if tentativa == 1:
-                x_botao, y_botao = self.bot.ponto_aleatorio(2380, 2460, 380, 425)
+                x_botao, y_botao = self.bot.ponto_aleatorio(261, 454, 505, 529)
             else:
-                x_botao, y_botao = self.bot.ponto_aleatorio(2380, 2460, 430, 485)
+                x_campo, y_campo = self.bot.ponto_aleatorio(265, 766, 392, 411)
+                self._preencher_chave_mg(chave, x_campo, y_campo)
+                x_botao, y_botao = self.bot.ponto_aleatorio(260, 454, 554, 576)
 
             print(f"MG botao consultar -> x={x_botao}, y={y_botao}")
             self.bot.mover_mouse_humano(x_botao, y_botao)
             self.bot.esperar(0.4)
             self.bot.clicar(x_botao, y_botao)
-            self.bot.esperar(4)
+            self.bot.esperar(6)
 
-            url_atual = self.bot.obter_url_atual()
-            print(f"MG url atual -> {url_atual}")
-            if any(url_resultado.lower() in url_atual.lower() for url_resultado in self.URLS_RESULTADO_MG):
+            print("MG focando pagina antes de selecionar tudo")
+            self.bot.focar_pagina()
+            self.bot.esperar(0.5)
+
+            texto = self.bot.selecionar_tudo_e_copiar().strip()
+            if texto:
+                print(f"MG texto copiado -> {len(texto)} caracteres")
+                print("MG previa texto copiado:")
+                print(texto[:500])
+            else:
+                print("MG texto copiado vazio nesta tentativa")
+
+            bloco_produtos = self._extrair_bloco_produtos_mg(texto)
+            if self._texto_tem_tabela_produtos_mg(texto):
+                print("MG confirmou cabecalho e itens de 'Produtos e Serviços' no texto copiado")
+                if bloco_produtos:
+                    print("MG bloco de produtos detectado:")
+                    print(bloco_produtos[:500])
+                self._reiniciar_aba_consulta()
                 break
 
-            print("MG URL ainda nao foi para a pagina de resultado, tentando novamente")
+            print("MG texto ainda sem a tabela de produtos de MG, tentando novamente")
         else:
-            raise TimeoutError(
-                "A consulta do MG nao mudou para a URL de resultado apos 5 tentativas."
-            )
-
-        self.bot.esperar(6)
-        print("MG focando pagina antes de selecionar tudo")
-        self.bot.focar_pagina()
-        self.bot.esperar(0.5)
-
-        texto = self.bot.selecionar_tudo_e_copiar().strip()
-        if texto:
-            print(f"MG texto copiado -> {len(texto)} caracteres")
-            print("MG previa texto copiado:")
-            print(texto[:500])
-        else:
-            print("MG texto copiado vazio, caindo para OCR")
-
+            print("MG nao confirmou pelo clipboard, caindo para OCR")
+            texto = ""
+    
         if not texto:
             texto = self.bot.extrair_texto_pagina("captura_mg")
         return {
@@ -122,11 +138,10 @@ class RotinaMGPadrao(RotinaEstado):
             "url_consulta": self.config.url,
             "texto_capturado": texto,
             "texto_audio": "",
-            "observacao": "Rotina MG validada pela URL de resultado, no mesmo padrao do ES.",
+            "observacao": "Rotina MG validada pelo texto copiado contendo a tabela de 'Produtos e Servicos'.",
         }
 
-    def _preencher_chave_mg(self, chave: str):
-        x_campo, y_campo = self.bot.ponto_aleatorio(1860, 2445, 380, 425)
+    def _preencher_chave_mg(self, chave: str,x_campo:int,y_campo:int):
         print(f"MG campo chave -> x={x_campo}, y={y_campo}")
         self.bot.mover_mouse_humano(x_campo, y_campo)
         self.bot.esperar(0.4)
@@ -134,6 +149,74 @@ class RotinaMGPadrao(RotinaEstado):
         self.bot.esperar(0.3)
         self.bot.atalho("ctrl", "a")
         self.bot.colar_texto(chave)
+
+    def executar(self, chave: str, linha: dict) -> dict:
+        if self.modo_execucao == "simular":
+            return {
+                "status_robo": "simulado",
+                "uf": self.config.uf,
+                "url_consulta": self.config.url,
+                "texto_capturado": "",
+                "texto_audio": "",
+                "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
+            }
+
+        if not self.pagina_inicializada:
+            print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")
+            self.bot.abrir_site(self.config.url)
+            self.pagina_inicializada = True
+        else:
+            print(f"Atualizando pagina da UF {self.config.uf} para a proxima chave")
+            self.bot.atualizar_pagina(self.config.url, espera=12)
+
+        return self._executar_passos(chave, linha)
+
+    def _texto_tem_tabela_produtos_mg(self, texto: str) -> bool:
+        if not texto:
+            return False
+
+        texto_normalizado = texto.replace("\r\n", "\n").replace("\r", "\n")
+        if not all(cabecalho in texto_normalizado for cabecalho in self.CABECALHO_TABELA_MG):
+            return False
+
+        padrao_item = re.compile(
+            r"^\s*\d+\s+.+?\s+\d+(?:[.,]\d+)?\s+[A-Za-z]+\s+R\$\s*\d+[.,]\d{2}\s+R\$\s*\d+[.,]\d{2}\s*$"
+        )
+        return any(padrao_item.match(linha.strip()) for linha in texto_normalizado.splitlines())
+
+    def _extrair_bloco_produtos_mg(self, texto: str) -> str:
+        if not texto:
+            return ""
+
+        texto_normalizado = texto.replace("\r\n", "\n").replace("\r", "\n")
+        inicio = texto_normalizado.find("Produtos e Serviços")
+        if inicio < 0:
+            return ""
+
+        fim = texto_normalizado.find("Situação atual:", inicio)
+        if fim < 0:
+            fim = len(texto_normalizado)
+
+        bloco = texto_normalizado[inicio:fim].strip()
+        return bloco if "Valor(R$)" in bloco else ""
+
+    def _reiniciar_aba_consulta(self):
+        url_atual = self.bot.obter_url_atual()
+        print(f"MG URL atual antes de reiniciar fluxo -> {url_atual}")
+
+        if url_atual.lower() == self.URL_ERRO_500_MG.lower():
+            print("MG caiu na pagina 500.xhtml, fechando e reabrindo a aba")
+            self.bot.atalho("ctrl", "w")
+            self.bot.esperar(0.8)
+            self.bot.atalho("ctrl", "t")
+            self.bot.esperar(0.8)
+            self.bot.abrir_site(self.URL_INICIAL_MG, espera=12)
+        else:
+            print("MG nao caiu na pagina 500.xhtml, voltando para o link inicial e aguardando Enter")
+            self.bot.abrir_site(self.URL_INICIAL_MG, espera=3)
+            input("MG: pressione Enter para ir para a pagina inicial e continuar...")
+
+        self.pagina_inicializada = True
 
 
 class RotinaESPadrao(RotinaEstado):
@@ -162,7 +245,7 @@ class RotinaESPadrao(RotinaEstado):
 
     def _executar_passos(self, chave: str, linha: dict) -> dict:
         self._preencher_chave_es(chave)
-        self.bot.esperar(10)
+        self.bot.esperar(15)
 
         for tentativa in range(1, 6):
             print(f"ES tentativa consulta -> {tentativa}")
@@ -170,14 +253,14 @@ class RotinaESPadrao(RotinaEstado):
                 print("ES clique extra antes do botao -> x=2473, y=452")
                 # self.bot.mover_mouse_humano(2473, 452) segunda tela  27pol
 
-                self.bot.mover_mouse_humano(1190, 492)
+                self.bot.mover_mouse_humano(890, 419)
                 self.bot.esperar(0.4)
             if tentativa == 1:
                 # x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 442, 479) segunda tela  27pol
-                x_botao, y_botao = self.bot.ponto_aleatorio(376, 495, 476, 512)
+                x_botao, y_botao = self.bot.ponto_aleatorio(174, 266, 407, 442)
             else:
                 # x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 523, 550)  segunda tela  27pol
-                x_botao, y_botao = self.bot.ponto_aleatorio(393, 492, 548, 588)
+                x_botao, y_botao = self.bot.ponto_aleatorio(174, 266, 475, 505)
       
             print(f"ES botao consultar -> x={x_botao}, y={y_botao}")
             self.bot.mover_mouse_humano(x_botao, y_botao)
@@ -220,12 +303,16 @@ class RotinaESPadrao(RotinaEstado):
     def _preencher_chave_es(self, chave: str):
         # x_campo, y_campo = self.bot.ponto_aleatorio(1672, 2419, 349, 418) segunda tela 27pol
 
-        x_campo, y_campo = self.bot.ponto_aleatorio(393, 1138, 387, 452)
+        x_campo, y_campo = self.bot.ponto_aleatorio(172, 840, 339, 390)
         print(f"ES campo chave -> x={x_campo}, y={y_campo}")
         self.bot.mover_mouse_humano(x_campo, y_campo)
         self.bot.esperar(0.4)
+        self.bot.focar_pagina()
+        self.bot.esperar(1)
+
         self.bot.clicar(x_campo, y_campo)
-        self.bot.esperar(0.3)
+        self.bot.esperar(1)
+
         self.bot.atalho("ctrl", "a")
         self.bot.colar_texto(chave)
 
@@ -271,7 +358,6 @@ class RotinaBAComAudio(RotinaSPComAudio):
 
 class RotinaRJPadrao(RotinaESPadrao):
     pass
-
 
 def criar_rotina(bot: BotVisual, config: ConfigUF, modo_execucao: str) -> RotinaEstado:
     rotinas = {

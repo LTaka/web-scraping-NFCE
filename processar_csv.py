@@ -6,7 +6,7 @@ from pathlib import Path
 from bot_visual import BotVisual
 from config_ufs import obter_config_por_chave
 from extrator_nfce import extrair_campos_nfce
-from rotinas_estaduais_2 import criar_rotina
+from rotinas_estaduais import criar_rotina
 
 
 CAMPOS_ADICIONAIS = [

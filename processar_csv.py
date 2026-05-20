@@ -9,6 +9,9 @@ from extrator_nfce import extrair_campos_nfce
 from rotinas_estaduais import criar_rotina
 
 
+ESPERA_PREPARACAO_INICIAL = 5
+
+
 CAMPOS_ADICIONAIS = [
     "uf",
     "url_consulta",
@@ -51,6 +54,7 @@ def processar_csv(
         fieldnames_saida = _montar_fieldnames_saida(leitor.fieldnames)
 
         bot = BotVisual()
+        _aguardar_preparacao_inicial(bot=bot, modo=modo)
         linhas_saida = []
         contexto = _criar_contexto_lote(bot=bot, modo=modo)
 
@@ -78,6 +82,17 @@ def _montar_fieldnames_saida(fieldnames_entrada: list[str]) -> list[str]:
         if campo not in fieldnames_saida:
             fieldnames_saida.append(campo)
     return fieldnames_saida
+
+
+def _aguardar_preparacao_inicial(*, bot: BotVisual, modo: str):
+    if modo != "executar":
+        return
+
+    print(
+        f"Aguardando {ESPERA_PREPARACAO_INICIAL} segundos antes de iniciar o processamento. "
+        "Posicione a pagina correta."
+    )
+    bot.esperar(ESPERA_PREPARACAO_INICIAL)
 
 
 def _criar_contexto_lote(bot: BotVisual, modo: str) -> dict:

@@ -6,26 +6,12 @@ from config_ufs import ConfigUF
 
 
 class RotinaEstado(ABC):
-    ESPERA_PREPARACAO_INICIAL = 5
-
     def __init__(self, bot: BotVisual, config: ConfigUF, modo_execucao: str):
         self.bot = bot
         self.config = config
         self.modo_execucao = modo_execucao
         self.pagina_inicializada = False
         self.primeira_execucao = True
-        self.preparacao_inicial_realizada = False
-
-    def _aguardar_preparacao_inicial(self):
-        if self.preparacao_inicial_realizada:
-            return
-
-        print(
-            f"Aguardando {self.ESPERA_PREPARACAO_INICIAL} segundos antes de iniciar a rotina "
-            f"da UF {self.config.uf}. Posicione a pagina correta."
-        )
-        self.bot.esperar(self.ESPERA_PREPARACAO_INICIAL)
-        self.preparacao_inicial_realizada = True
 
     def _aguardar_ou_falhar(self, *, contexto: str, textos_esperados: list[str] | None = None):
         carregou = self.bot.aguardar_pagina_carregar(
@@ -51,8 +37,6 @@ class RotinaEstado(ABC):
                 "texto_audio": "",
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
-
-        self._aguardar_preparacao_inicial()
 
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")
@@ -82,8 +66,32 @@ class RotinaEstado(ABC):
 
 class RotinaMGPadrao(RotinaEstado):
     URL_INICIAL_MG = "https://portalsped.fazenda.mg.gov.br/portalnfce/sistema/consultaarg.xhtml"
-    URL_ERRO_500_MG = "https://portalsped.fazenda.mg.gov.br/portalnfce/resourcelib/xhtml/erro/500.xhtml"
+
+    AREA_CAMPO_CHAVE_INICIAL_MG = (1651, 2365, 403, 408)
+    AREA_CAMPO_CHAVE_ERRO_MG = (1651, 2365, 452, 452)
+    AREA_BOTAO_CONSULTAR_INICIAL_MG = (1642, 1923, 435, 463)
+    AREA_BOTAO_CONSULTAR_ERRO_MG = (1642, 1923, 485, 508)
     TEXTO_SUCESSO_MG = "Produtos e Serviços"
+
+    TEXTO_RESULTADO_MG = "Consulta Resumida - Ambiente de Produção"
+    FRAGMENTOS_PAGINA_INICIAL_MG = (
+        "Intranet SEF - Secretaria de Estado de Fazenda",
+        "Consultar NFC-e",
+        "Consultar Inutilização",
+        "Nota Fiscal de Consumidor Eletrônica (NFC-e) - Ambiente de Produção",
+        "Observações",
+        "1. Chave de Acesso deve ser informado o número de 44 dígitos NFC-e (Nota Fiscal de Consumidor Eletrônica)",
+        "reCAPTCHA",
+        "Consulta Nota Fiscal de Consumidor Eletrônica (NFC-e)",
+        "Chave de acesso",
+        "Versão 1.2.20",
+        "Rodovia Papa João Paulo II, 4.001 - Prédio Gerais (6º e 7º andares) - Bairro Serra Verde, Belo Horizonte/MG CEP 31630-901",
+    )
+    LIMITE_EXCEDENTE_PAGINA_INICIAL_MG = 120
+    ESTADOS_CONSULTA_RECUPERAVEIS_MG = {
+        "inicial",
+        "erro"
+    }
     CABECALHO_TABELA_MG = (
         "Número",
         "Descrição",
@@ -94,36 +102,73 @@ class RotinaMGPadrao(RotinaEstado):
     )
 
     def _executar_passos(self, chave: str, linha: dict) -> dict:
-        x_campo, y_campo = self.bot.ponto_aleatorio(265, 766, 392, 411)
+        # A primeira tentativa sempre parte do layout inicial da consulta.
+        print("MG iniciando execucao da chave atual")
+        print(f"MG chave recebida -> {chave}")
+        x_campo, y_campo = self._ponto_campo_chave_mg("inicial")
         self._preencher_chave_mg(chave, x_campo, y_campo)
-        self.bot.esperar(10)
+        self.bot.esperar(4)
         texto = ""
         for tentativa in range(1, 6):
             print(f"MG tentativa consulta -> {tentativa}")
-            if tentativa > 1:
-                print("MG clique adicional antes do botao -> x=285, y=495")
-                self.bot.mover_mouse_humano(285, 495)
-                self.bot.esperar(0.4)
-                self.bot.clicar(285, 495)
-                self.bot.esperar(1.5)
 
-            if tentativa == 1:
-                x_botao, y_botao = self.bot.ponto_aleatorio(261, 454, 505, 529)
-            else:
-                x_campo, y_campo = self.bot.ponto_aleatorio(265, 766, 392, 411)
+            # Antes de cada clique, a rotina copia o texto atual da pagina para
+            # decidir em qual layout esta: tela inicial, tela com erro validavel,
+            # resultado, ou estado desconhecido.
+   
+            estado_antes = self._ler_estado_pagina_mg()
+            print(f"MG estado antes do clique consultar -> {estado_antes}")
+            print(f"MG tentativa {tentativa}: iniciando preparacao do clique")
+
+
+            # if tentativa > 1 and estado_antes == "erro_captcha":
+            #     print("MG clique adicional antes do botao -> x=285, y=495")
+            #     self.bot.mover_mouse_humano(285, 495)
+            #     self.bot.esperar(0.2)
+            #     self.bot.clicar(285, 495)
+            #     self.bot.esperar(0.5)
+
+            if  estado_antes == "inicial":
+                # Layout da tela inicial:
+                # 1. usa a area normal do campo
+                # 2. usa a area normal do botao consultar
+                print("MG layout escolhido antes do clique -> inicial")
+                print("MG nova tentativa ainda na tela inicial; repreenchendo a chave")
+                x_campo, y_campo = self._ponto_campo_chave_mg("inicial")
                 self._preencher_chave_mg(chave, x_campo, y_campo)
-                x_botao, y_botao = self.bot.ponto_aleatorio(260, 454, 554, 576)
+                x_botao, y_botao = self._ponto_botao_consultar_mg("inicial")
+            elif estado_antes == "erro":
+                # Layout de erro:
+                # Quando a pagina base da consulta reaparece com conteudo extra,
+                # assume que o layout foi deslocado pela mensagem de erro.
+                print(f"MG layout escolhido antes do clique -> erro ({estado_antes})")
+                x_campo, y_campo = self._ponto_campo_chave_mg(estado_antes)
+                self._preencher_chave_mg(chave, x_campo, y_campo)
+                x_botao, y_botao = self._ponto_botao_consultar_mg(estado_antes)
+            else:
+                # Qualquer texto fora dos estados conhecidos e tratado como tela
+                # corrompida ou fora do fluxo. Nessa situacao a aba e recriada.
+                print("MG estado fora do fluxo esperado antes do clique; reiniciando pagina inicial")
+                self._reiniciar_aba_consulta()
+                x_campo, y_campo = self._ponto_campo_chave_mg("inicial")
+                self._preencher_chave_mg(chave, x_campo, y_campo)
+                self.bot.esperar(2)
+                x_botao, y_botao = self._ponto_botao_consultar_mg("inicial")
 
             print(f"MG botao consultar -> x={x_botao}, y={y_botao}")
+            print("MG movendo mouse para o botao consultar")
             self.bot.mover_mouse_humano(x_botao, y_botao)
-            self.bot.esperar(0.4)
+            # self.bot.esperar(0.4)
+            print("MG clicando no botao consultar")
             self.bot.clicar(x_botao, y_botao)
-            self.bot.esperar(6)
+            self.bot.esperar(4)
+
 
             print("MG focando pagina antes de selecionar tudo")
             self.bot.focar_pagina()
-            self.bot.esperar(0.5)
+            self.bot.esperar(0.3)
 
+            print("MG executando Ctrl+A / Ctrl+C para ler a pagina")
             texto = self.bot.selecionar_tudo_e_copiar().strip()
             if texto:
                 print(f"MG texto copiado -> {len(texto)} caracteres")
@@ -132,22 +177,40 @@ class RotinaMGPadrao(RotinaEstado):
             else:
                 print("MG texto copiado vazio nesta tentativa")
 
-            bloco_produtos = self._extrair_bloco_produtos_mg(texto)
-            if self._texto_tem_tabela_produtos_mg(texto):
-                print("MG confirmou cabecalho e itens de 'Produtos e Serviços' no texto copiado")
-                if bloco_produtos:
-                    print("MG bloco de produtos detectado:")
-                    print(bloco_produtos[:500])
+            # Depois de copiar a pagina inteira com Ctrl+A/Ctrl+C, classifica
+            # novamente o estado. Se nao reconhecer o texto, reinicia a aba.
+            estado_depois = self._ler_estado_pagina_mg(texto)
+            print(f"MG estado apos consultar -> {estado_depois}")
+            if self._estado_exige_reinicio_mg(estado_depois):
+                print("MG texto apos consultar nao corresponde a nenhum estado esperado; reiniciando aba")
+                self._reiniciar_aba_consulta()
+                x_campo, y_campo = self._ponto_campo_chave_mg("inicial")
+                self._preencher_chave_mg(chave, x_campo, y_campo)
+                self.bot.esperar(2)
+                texto = ""
+                continue
+
+            # Para acelerar o fluxo, considera sucesso quando o texto copiado ja
+            # contem a secao "Produtos e Servicos". Nessa hora ja salva o texto
+            # e prepara a pagina inicial para a proxima chave.
+            if self._texto_eh_resultado_mg(texto):
+                print("MG confirmou resultado pelo texto copiado")
+                print("MG encerrando a tentativa atual com sucesso e preparando a proxima chave")
                 self._reiniciar_aba_consulta()
                 break
 
-            print("MG texto ainda sem a tabela de produtos de MG, tentando novamente")
+            # Se o texto ainda for da propria tela inicial ou de um erro
+            # recuperavel, basta seguir para a proxima tentativa sem checar URL.
+            print("MG texto ainda esta em tela inicial/erro recuperavel, tentando novamente")
         else:
             print("MG nao confirmou pelo clipboard, caindo para OCR")
             texto = ""
     
         if not texto:
+            print("MG executando OCR como ultimo recurso")
             texto = self.bot.extrair_texto_pagina("captura_mg")
+            print(f"MG OCR retornou -> {len(texto)} caracteres")
+        print("MG finalizando execucao da chave atual")
         return {
             "status_robo": "ok",
             "uf": self.config.uf,
@@ -159,20 +222,156 @@ class RotinaMGPadrao(RotinaEstado):
 
     def _preencher_chave_mg(self, chave: str,x_campo:int,y_campo:int):
         print(f"MG campo chave -> x={x_campo}, y={y_campo}")
+        print("MG movendo mouse para o campo da chave")
         self.bot.mover_mouse_humano(x_campo, y_campo)
         self.bot.esperar(0.4)
-        self.bot.focar_pagina()
-        self.bot.esperar(1)
+        print("MG clicando no campo da chave")
         self.bot.clicar(x_campo, y_campo)
-        self.bot.esperar(1)
+        print("MG limpando o campo com Ctrl+A")
         self.bot.atalho("ctrl", "a")
+        print("MG colando a chave no campo")
         self.bot.colar_texto(chave)
 
     def _abrir_pagina_inicial_mg(self, espera: int = 12):
         print(f"MG abrindo URL inicial fixa: {self.URL_INICIAL_MG}")
-        self.bot.abrir_site(self.URL_INICIAL_MG, espera=espera)
+
+        for tentativa in range(1, 4):
+            print(f"MG tentativa de navegar para pagina inicial -> {tentativa}")
+            print("MG enviando a URL inicial para a barra de enderecos")
+            self.bot.abrir_site(self.URL_INICIAL_MG, espera=espera)
+
+            url_atual = self.bot.obter_url_atual()
+            print(f"MG URL atual apos enviar link -> {url_atual}")
+            if self._url_atual_eh_inicial_mg(url_atual):
+                print("MG confirmou a URL inicial na barra de enderecos")
+                return
+
+        raise TimeoutError(
+            "MG nao mudou para a URL inicial apos 3 tentativas de envio do link."
+        )
+
+    def _normalizar_url_mg(self, url: str) -> str:
+        return (url or "").strip().rstrip("/").lower()
+
+    def _estado_usa_layout_erro_mg(self, estado: str) -> bool:
+        print(f"MG verificando se o estado usa layout de erro -> {estado}")
+        return estado == "erro"
+
+    def _ponto_campo_chave_mg(self, estado: str) -> tuple[int, int]:
+        # Quando ha erro visivel na pagina, o campo da chave sai do layout
+        # inicial e passa a usar outra faixa vertical.
+        if self._estado_usa_layout_erro_mg(estado):
+            area = self.AREA_CAMPO_CHAVE_ERRO_MG
+        else:
+            area = self.AREA_CAMPO_CHAVE_INICIAL_MG
+        print(f"MG area escolhida para campo da chave -> {area} (estado={estado})")
+        return self.bot.ponto_aleatorio(*area)
+
+    def _ponto_botao_consultar_mg(self, estado: str) -> tuple[int, int]:
+        # O botao tambem muda de posicao quando a pagina entra no layout de erro.
+        if self._estado_usa_layout_erro_mg(estado):
+            area = self.AREA_BOTAO_CONSULTAR_ERRO_MG
+        else:
+            area = self.AREA_BOTAO_CONSULTAR_INICIAL_MG
+        print(f"MG area escolhida para botao consultar -> {area} (estado={estado})")
+        return self.bot.ponto_aleatorio(*area)
+
+    def _texto_normalizado_mg(self, texto: str) -> str:
+        return " ".join((texto or "").lower().split())
+
+    def _texto_tem_fragmentos_pagina_inicial_mg(self, texto: str) -> bool:
+        texto_normalizado = self._texto_normalizado_mg(texto)
+        return all(fragmento.lower() in texto_normalizado for fragmento in self.FRAGMENTOS_PAGINA_INICIAL_MG)
+
+    def _texto_excedente_layout_inicial_mg(self, texto: str) -> str:
+        excedente = self._texto_normalizado_mg(texto)
+        for fragmento in self.FRAGMENTOS_PAGINA_INICIAL_MG:
+            excedente = excedente.replace(fragmento.lower(), " ")
+        return " ".join(excedente.split())
+
+    def _texto_eh_pagina_inicial_mg(self, texto: str) -> bool:
+        if not self._texto_tem_fragmentos_pagina_inicial_mg(texto):
+            return False
+        excedente = self._texto_excedente_layout_inicial_mg(texto)
+        print(f"MG excedente apos remover fragmentos da pagina inicial -> {len(excedente)} caracteres")
+        return len(excedente) <= self.LIMITE_EXCEDENTE_PAGINA_INICIAL_MG
+
+    def _texto_eh_pagina_erro_mg(self, texto: str) -> bool:
+        if not self._texto_tem_fragmentos_pagina_inicial_mg(texto):
+            return False
+        excedente = self._texto_excedente_layout_inicial_mg(texto)
+        print(f"MG excedente identificado para layout de erro -> {len(excedente)} caracteres")
+        return len(excedente) > self.LIMITE_EXCEDENTE_PAGINA_INICIAL_MG
+
+    def _texto_eh_resultado_mg(self, texto: str) -> bool:
+        texto_normalizado = (texto or "").lower()
+        return self.TEXTO_RESULTADO_MG.lower() in texto_normalizado or self.TEXTO_SUCESSO_MG.lower() in texto_normalizado
+
+    def _copiar_texto_pagina_mg(self) -> str:
+        print("MG focando pagina para copiar o texto completo")
+        self.bot.focar_pagina()
+        print("MG executando Ctrl+A / Ctrl+C para leitura de estado")
+        texto = self.bot.selecionar_tudo_e_copiar().strip()
+        print(f"MG texto usado para leitura de estado -> {len(texto)} caracteres")
+        return texto
+
+    def _ler_estado_pagina_mg(self, texto: str | None = None) -> str:
+        if texto is None:
+            print("MG lendo estado da pagina com novo clipboard")
+            texto = self._copiar_texto_pagina_mg()
+        else:
+            print(f"MG lendo estado com texto ja fornecido -> {len(texto)} caracteres")
+
+        if self._texto_eh_resultado_mg(texto):
+            print("MG classificacao de estado -> resultado")
+            return "resultado"
+        if self._texto_eh_pagina_erro_mg(texto):
+            print("MG classificacao de estado -> erro")
+            return "erro"
+        if self._texto_eh_pagina_inicial_mg(texto):
+            print("MG classificacao de estado -> inicial")
+            return "inicial"
+        print("MG classificacao de estado -> desconhecido")
+        return "desconhecido"
+
+    def _url_atual_eh_inicial_mg(self, url: str) -> bool:
+        return self._normalizar_url_mg(url) == self._normalizar_url_mg(self.URL_INICIAL_MG)
+
+
+    def _estado_exige_reinicio_mg(self, estado: str) -> bool:
+        exige_reinicio = estado not in self.ESTADOS_CONSULTA_RECUPERAVEIS_MG and estado != "resultado"
+        print(f"MG estado exige reinicio? -> {exige_reinicio} (estado={estado})")
+        return exige_reinicio
+
+    def _garantir_pagina_inicial_mg(self, espera: int = 12, max_tentativas: int = 4):
+        print(f"MG garantindo pagina inicial -> pagina_inicializada={self.pagina_inicializada}")
+
+        for tentativa in range(1, max_tentativas + 1):
+            print(f"MG tentativa de garantir pagina inicial -> {tentativa}/{max_tentativas}")
+            url_atual = self.bot.obter_url_atual()
+            print(f"MG URL atual antes da validacao da tela inicial -> {url_atual}")
+
+            if tentativa == 1 and self._url_atual_eh_inicial_mg(url_atual):
+                print("MG URL atual ja aponta para a pagina inicial; validando o conteudo")
+            else:
+                print("MG reenviando URL inicial e recarregando para forcar a tela correta")
+                self.bot.abrir_site(self.URL_INICIAL_MG, espera=espera)
+                self.bot.atualizar_pagina(self.URL_INICIAL_MG, espera=espera)
+
+            texto_inicial = self._copiar_texto_pagina_mg()
+            estado_inicial = self._ler_estado_pagina_mg(texto_inicial)
+            print(f"MG estado apos tentativa de preparar pagina inicial -> {estado_inicial}")
+
+            if estado_inicial == "inicial":
+                print("MG confirmou a tela inicial correta")
+                return
+
+            print("MG tela inicial ainda nao confirmou; nova tentativa sera executada")
+
+        raise TimeoutError("MG nao confirmou a tela inicial correta apos varias tentativas de recarga.")
 
     def executar(self, chave: str, linha: dict) -> dict:
+        print("MG metodo executar chamado")
         if self.modo_execucao == "simular":
             return {
                 "status_robo": "simulado",
@@ -183,15 +382,14 @@ class RotinaMGPadrao(RotinaEstado):
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
 
-        self._aguardar_preparacao_inicial()
-
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.URL_INICIAL_MG}")
-            self._abrir_pagina_inicial_mg()
-            self.pagina_inicializada = True
         else:
-            print(f"Reabrindo pagina inicial da UF {self.config.uf} para a proxima chave")
-            self._abrir_pagina_inicial_mg()
+            print(f"Verificando pagina inicial da UF {self.config.uf} para a proxima chave")
+
+        self._garantir_pagina_inicial_mg()
+        self.pagina_inicializada = True
+        print("MG pagina inicial pronta; iniciando fluxo da consulta")
 
         return self._executar_passos(chave, linha)
 
@@ -225,22 +423,11 @@ class RotinaMGPadrao(RotinaEstado):
         return bloco if "Valor(R$)" in bloco else ""
 
     def _reiniciar_aba_consulta(self):
-        url_atual = self.bot.obter_url_atual()
-        print(f"MG URL atual antes de reiniciar fluxo -> {url_atual}")
-
-        if url_atual.lower() == self.URL_ERRO_500_MG.lower():
-            print("MG caiu na pagina 500.xhtml, fechando e reabrindo a aba")
-            self.bot.atalho("ctrl", "w")
-            self.bot.esperar(0.8)
-            self.bot.atalho("ctrl", "t")
-            self.bot.esperar(0.8)
-            self._abrir_pagina_inicial_mg()
-        else:
-            print("MG nao caiu na pagina 500.xhtml, voltando para o link inicial e aguardando Enter")
-            self._abrir_pagina_inicial_mg(espera=3)
-            input("MG: pressione Enter para ir para a pagina inicial e continuar...")
-
+        # Reinicia mais rapido recarregando a URL inicial na mesma aba.
+        print("MG reiniciando fluxo pela URL inicial")
+        self._garantir_pagina_inicial_mg(espera=3, max_tentativas=4)
         self.pagina_inicializada = True
+        print("MG fluxo reposicionado na pagina inicial")
 
 
 class RotinaESPadrao(RotinaEstado):
@@ -257,8 +444,6 @@ class RotinaESPadrao(RotinaEstado):
                 "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
             }
 
-        self._aguardar_preparacao_inicial()
-
         if not self.pagina_inicializada:
             print(f"Abrindo link da UF {self.config.uf} uma vez: {self.config.url}")
             self.bot.abrir_site(self.config.url)
@@ -270,21 +455,26 @@ class RotinaESPadrao(RotinaEstado):
         return self._executar_passos(chave, linha)
 
     def _executar_passos(self, chave: str, linha: dict) -> dict:
+        # O fluxo do ES comeca colando a chave no campo atual da pagina.
         self._preencher_chave_es(chave)
         self.bot.esperar(15)
 
         for tentativa in range(1, 6):
             print(f"ES tentativa consulta -> {tentativa}")
             if tentativa > 1:
+                # Depois da primeira tentativa, o layout muda e a rotina faz um
+                # clique extra antes de procurar o botao consultar novamente.
                 print("ES clique extra antes do botao -> x=2473, y=452")
                 # self.bot.mover_mouse_humano(2473, 452) segunda tela  27pol
 
                 self.bot.mover_mouse_humano(890, 419)
                 self.bot.esperar(0.4)
             if tentativa == 1:
+                # Primeira tentativa: usa a faixa normal do botao.
                 # x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 442, 479) segunda tela  27pol
                 x_botao, y_botao = self.bot.ponto_aleatorio(174, 266, 407, 442)
             else:
+                # Tentativas seguintes: o botao costuma aparecer mais abaixo.
                 # x_botao, y_botao = self.bot.ponto_aleatorio(1674, 1778, 523, 550)  segunda tela  27pol
                 x_botao, y_botao = self.bot.ponto_aleatorio(174, 266, 475, 505)
       
@@ -294,6 +484,8 @@ class RotinaESPadrao(RotinaEstado):
             self.bot.clicar(x_botao, y_botao)
             self.bot.esperar(4)
 
+            # O ES considera sucesso de navegacao quando a URL muda para a
+            # pagina final de resultado.
             url_atual = self.bot.obter_url_atual()
             print(f"ES url atual -> {url_atual}")
             if self.URL_RESULTADO_ES.lower() in url_atual.lower():
@@ -303,6 +495,8 @@ class RotinaESPadrao(RotinaEstado):
                 "A consulta do ES nao mudou para a URL de resultado apos 5 tentativas."
             )
 
+        # Com a URL confirmada, foca a pagina e copia o conteudo inteiro usando
+        # Ctrl+A/Ctrl+C para registrar o texto retornado pelo portal.
         self.bot.esperar(6)
         print("ES focando pagina antes de selecionar tudo")
         self.bot.focar_pagina()
@@ -314,6 +508,7 @@ class RotinaESPadrao(RotinaEstado):
             print("ES previa texto copiado:")
             print(texto[:500])
         else:
+            # Se o clipboard nao trouxer texto, usa OCR como fallback.
             print("ES texto copiado vazio, caindo para OCR")
         if not texto:
             texto = self.bot.extrair_texto_pagina("captura_es")
@@ -327,6 +522,8 @@ class RotinaESPadrao(RotinaEstado):
         }
 
     def _preencher_chave_es(self, chave: str):
+        # O clique no campo usa uma faixa aleatoria antes de selecionar tudo e
+        # colar a chave.
         # x_campo, y_campo = self.bot.ponto_aleatorio(1672, 2419, 349, 418) segunda tela 27pol
 
         x_campo, y_campo = self.bot.ponto_aleatorio(172, 840, 339, 390)

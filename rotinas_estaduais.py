@@ -67,10 +67,13 @@ class RotinaEstado(ABC):
 class RotinaMGPadrao(RotinaEstado):
     URL_INICIAL_MG = "https://portalsped.fazenda.mg.gov.br/portalnfce/sistema/consultaarg.xhtml"
 
-    AREA_CAMPO_CHAVE_INICIAL_MG = (1651, 2365, 403, 408)
-    AREA_CAMPO_CHAVE_ERRO_MG = (1651, 2365, 452, 452)
-    AREA_BOTAO_CONSULTAR_INICIAL_MG = (1642, 1923, 435, 463)
-    AREA_BOTAO_CONSULTAR_ERRO_MG = (1642, 1923, 485, 508)
+    AREA_CAMPO_CHAVE_INICIAL_MG = (1651, 2365, 391, 408)
+    AREA_CAMPO_CHAVE_ERRO_MG = (1651, 2365, 429, 455)
+    AREA_BOTAO_CONSULTAR_INICIAL_MG = (1647, 1923, 503, 523)
+    AREA_BOTAO_CONSULTAR_ERRO_MG = (1647, 1923, 550, 576)
+
+    CLOUD_FLARE = (285, 495)
+
     TEXTO_SUCESSO_MG = "Produtos e Serviços"
 
     TEXTO_RESULTADO_MG = "Consulta Resumida - Ambiente de Produção"
@@ -81,12 +84,16 @@ class RotinaMGPadrao(RotinaEstado):
         "Nota Fiscal de Consumidor Eletrônica (NFC-e) - Ambiente de Produção",
         "Observações",
         "1. Chave de Acesso deve ser informado o número de 44 dígitos NFC-e (Nota Fiscal de Consumidor Eletrônica)",
-        "reCAPTCHA",
+        "2. reCAPTCHA é um serviço que protege este site contra spam e abuso, passe por ele para prosseguir com a solicitação de consulta.",
         "Consulta Nota Fiscal de Consumidor Eletrônica (NFC-e)",
         "Chave de acesso",
         "Versão 1.2.20",
         "Rodovia Papa João Paulo II, 4.001 - Prédio Gerais (6º e 7º andares) - Bairro Serra Verde, Belo Horizonte/MG CEP 31630-901",
     )
+
+
+
+
     LIMITE_EXCEDENTE_PAGINA_INICIAL_MG = 120
     ESTADOS_CONSULTA_RECUPERAVEIS_MG = {
         "inicial",
@@ -107,7 +114,7 @@ class RotinaMGPadrao(RotinaEstado):
         print(f"MG chave recebida -> {chave}")
         x_campo, y_campo = self._ponto_campo_chave_mg("inicial")
         self._preencher_chave_mg(chave, x_campo, y_campo)
-        self.bot.esperar(4)
+        self.bot.esperar(2)
         texto = ""
         for tentativa in range(1, 6):
             print(f"MG tentativa consulta -> {tentativa}")
@@ -121,13 +128,10 @@ class RotinaMGPadrao(RotinaEstado):
             print(f"MG tentativa {tentativa}: iniciando preparacao do clique")
 
 
-            # if tentativa > 1 and estado_antes == "erro_captcha":
-            #     print("MG clique adicional antes do botao -> x=285, y=495")
-            #     self.bot.mover_mouse_humano(285, 495)
-            #     self.bot.esperar(0.2)
-            #     self.bot.clicar(285, 495)
-            #     self.bot.esperar(0.5)
+            if tentativa == 2:
 
+                self.bot.atualizar_pagina(self.URL_INICIAL_MG, espera=6)
+             
             if  estado_antes == "inicial":
                 # Layout da tela inicial:
                 # 1. usa a area normal do campo
@@ -144,6 +148,7 @@ class RotinaMGPadrao(RotinaEstado):
                 print(f"MG layout escolhido antes do clique -> erro ({estado_antes})")
                 x_campo, y_campo = self._ponto_campo_chave_mg(estado_antes)
                 self._preencher_chave_mg(chave, x_campo, y_campo)
+                self._ponto_cloud_flare(chave, x_campo, y_campo)
                 x_botao, y_botao = self._ponto_botao_consultar_mg(estado_antes)
             else:
                 # Qualquer texto fora dos estados conhecidos e tratado como tela
@@ -158,24 +163,10 @@ class RotinaMGPadrao(RotinaEstado):
             print(f"MG botao consultar -> x={x_botao}, y={y_botao}")
             print("MG movendo mouse para o botao consultar")
             self.bot.mover_mouse_humano(x_botao, y_botao)
-            # self.bot.esperar(0.4)
+            self.bot.esperar(0.2)
             print("MG clicando no botao consultar")
             self.bot.clicar(x_botao, y_botao)
             self.bot.esperar(4)
-
-
-            print("MG focando pagina antes de selecionar tudo")
-            self.bot.focar_pagina()
-            self.bot.esperar(0.3)
-
-            print("MG executando Ctrl+A / Ctrl+C para ler a pagina")
-            texto = self.bot.selecionar_tudo_e_copiar().strip()
-            if texto:
-                print(f"MG texto copiado -> {len(texto)} caracteres")
-                print("MG previa texto copiado:")
-                print(texto[:500])
-            else:
-                print("MG texto copiado vazio nesta tentativa")
 
             # Depois de copiar a pagina inteira com Ctrl+A/Ctrl+C, classifica
             # novamente o estado. Se nao reconhecer o texto, reinicia a aba.
@@ -257,6 +248,16 @@ class RotinaMGPadrao(RotinaEstado):
         print(f"MG verificando se o estado usa layout de erro -> {estado}")
         return estado == "erro"
 
+    def _ponto_cloud_flare(self, estado: str) -> tuple[int, int]:
+        # Quando ha erro visivel na pagina, o campo da chave sai do layout
+        # inicial e passa a usar outra faixa vertical.
+        if self._estado_usa_layout_erro_mg(estado):
+            self.bot.mover_mouse_humano(*self.CLOUD_FLARE)
+            self.bot.esperar(0.2)
+            self.bot.clicar(*self.CLOUD_FLARE)
+            self.bot.esperar(0.5)
+
+    
     def _ponto_campo_chave_mg(self, estado: str) -> tuple[int, int]:
         # Quando ha erro visivel na pagina, o campo da chave sai do layout
         # inicial e passa a usar outra faixa vertical.
@@ -301,6 +302,10 @@ class RotinaMGPadrao(RotinaEstado):
             return False
         excedente = self._texto_excedente_layout_inicial_mg(texto)
         print(f"MG excedente identificado para layout de erro -> {len(excedente)} caracteres")
+        if excedente:
+            print("MG conteudo excedente identificado:")
+            print(excedente)
+            
         return len(excedente) > self.LIMITE_EXCEDENTE_PAGINA_INICIAL_MG
 
     def _texto_eh_resultado_mg(self, texto: str) -> bool:
@@ -312,15 +317,19 @@ class RotinaMGPadrao(RotinaEstado):
         self.bot.focar_pagina()
         print("MG executando Ctrl+A / Ctrl+C para leitura de estado")
         texto = self.bot.selecionar_tudo_e_copiar().strip()
-        print(f"MG texto usado para leitura de estado -> {len(texto)} caracteres")
+        if texto:
+            print(f"MG texto copiado -> {len(texto)} caracteres")
+            print("MG previa texto copiado:")
+            print(texto)
+        else:
+            print("MG texto copiado vazio nesta tentativa")
         return texto
 
     def _ler_estado_pagina_mg(self, texto: str | None = None) -> str:
-        if texto is None:
-            print("MG lendo estado da pagina com novo clipboard")
-            texto = self._copiar_texto_pagina_mg()
-        else:
-            print(f"MG lendo estado com texto ja fornecido -> {len(texto)} caracteres")
+
+        print("MG lendo estado da pagina com novo clipboard")
+        texto = self._copiar_texto_pagina_mg()
+        print(f"MG estado com texto ja fornecido -> {len(texto)} caracteres")
 
         if self._texto_eh_resultado_mg(texto):
             print("MG classificacao de estado -> resultado")

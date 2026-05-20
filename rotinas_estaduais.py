@@ -108,14 +108,9 @@ class RotinaMGPadrao(RotinaEstado):
         "Valor(R$)",
     )
 
-    def _executar_passos(self, chave: str, linha: dict) -> dict:
-        # A primeira tentativa sempre parte do layout inicial da consulta.
-        print("MG iniciando execucao da chave atual")
-        print(f"MG chave recebida -> {chave}")
-        x_campo, y_campo = self._ponto_campo_chave_mg("inicial")
-        self._preencher_chave_mg(chave, x_campo, y_campo)
-        self.bot.esperar(2)
+    def _executar_passos(self, estado: str, chave: str, linha: dict) -> dict:
         texto = ""
+        estado_final = ""
         for tentativa in range(1, 6):
             print(f"MG tentativa consulta -> {tentativa}")
 
@@ -123,15 +118,9 @@ class RotinaMGPadrao(RotinaEstado):
             # decidir em qual layout esta: tela inicial, tela com erro validavel,
             # resultado, ou estado desconhecido.
    
-            estado_antes = self._ler_estado_pagina_mg()
+            estado_antes = estado
             print(f"MG estado antes do clique consultar -> {estado_antes}")
             print(f"MG tentativa {tentativa}: iniciando preparacao do clique")
-
-
-            if tentativa == 2:
-
-                self.bot.atualizar_pagina(self.URL_INICIAL_MG, espera=6)
-             
             if  estado_antes == "inicial":
                 # Layout da tela inicial:
                 # 1. usa a area normal do campo
@@ -168,10 +157,21 @@ class RotinaMGPadrao(RotinaEstado):
             self.bot.clicar(x_botao, y_botao)
             self.bot.esperar(4)
 
-            # Depois de copiar a pagina inteira com Ctrl+A/Ctrl+C, classifica
-            # novamente o estado. Se nao reconhecer o texto, reinicia a aba.
-            estado_depois = self._ler_estado_pagina_mg(texto)
+            # Depois do clique, usa o texto real da pagina para decidir se a
+            # consulta retornou resultado, permaneceu na tela inicial/erro
+            # recuperavel, ou caiu em estado desconhecido.
+            texto = self._copiar_texto_pagina_mg()
+            estado_depois = self._classificar_estado_pagina_mg(texto)
+            estado_final = estado_depois
+
             print(f"MG estado apos consultar -> {estado_depois}")
+
+            if estado_depois == "resultado":
+                print("MG confirmou resultado pelo texto copiado")
+                print("MG encerrando a tentativa atual com sucesso e preparando a proxima chave")
+                self._reiniciar_aba_consulta()
+                break
+
             if self._estado_exige_reinicio_mg(estado_depois):
                 print("MG texto apos consultar nao corresponde a nenhum estado esperado; reiniciando aba")
                 self._reiniciar_aba_consulta()
@@ -180,15 +180,6 @@ class RotinaMGPadrao(RotinaEstado):
                 self.bot.esperar(2)
                 texto = ""
                 continue
-
-            # Para acelerar o fluxo, considera sucesso quando o texto copiado ja
-            # contem a secao "Produtos e Servicos". Nessa hora ja salva o texto
-            # e prepara a pagina inicial para a proxima chave.
-            if self._texto_eh_resultado_mg(texto):
-                print("MG confirmou resultado pelo texto copiado")
-                print("MG encerrando a tentativa atual com sucesso e preparando a proxima chave")
-                self._reiniciar_aba_consulta()
-                break
 
             # Se o texto ainda for da propria tela inicial ou de um erro
             # recuperavel, basta seguir para a proxima tentativa sem checar URL.
@@ -199,8 +190,20 @@ class RotinaMGPadrao(RotinaEstado):
     
         if not texto:
             print("MG executando OCR como ultimo recurso")
-            texto = self.bot.extrair_texto_pagina("captura_mg")
-            print(f"MG OCR retornou -> {len(texto)} caracteres")
+            texto_ocr = self.bot.extrair_texto_pagina("captura_mg")
+            print(f"MG OCR retornou -> {len(texto_ocr)} caracteres")
+            estado_ocr = self._classificar_estado_pagina_mg(texto_ocr) if texto_ocr else ""
+            if estado_ocr == "resultado":
+                texto = texto_ocr
+                estado_final = estado_ocr
+                print("MG OCR confirmou resultado")
+            else:
+                print("MG OCR nao confirmou resultado; descartando texto capturado")
+                texto = ""
+                estado_final = estado_ocr or estado_final
+        elif estado_final != "resultado":
+            print("MG texto capturado nao e resultado; descartando antes de retornar")
+            texto = ""
         print("MG finalizando execucao da chave atual")
         return {
             "status_robo": "ok",
@@ -223,23 +226,6 @@ class RotinaMGPadrao(RotinaEstado):
         print("MG colando a chave no campo")
         self.bot.colar_texto(chave)
 
-    def _abrir_pagina_inicial_mg(self, espera: int = 12):
-        print(f"MG abrindo URL inicial fixa: {self.URL_INICIAL_MG}")
-
-        for tentativa in range(1, 4):
-            print(f"MG tentativa de navegar para pagina inicial -> {tentativa}")
-            print("MG enviando a URL inicial para a barra de enderecos")
-            self.bot.abrir_site(self.URL_INICIAL_MG, espera=espera)
-
-            url_atual = self.bot.obter_url_atual()
-            print(f"MG URL atual apos enviar link -> {url_atual}")
-            if self._url_atual_eh_inicial_mg(url_atual):
-                print("MG confirmou a URL inicial na barra de enderecos")
-                return
-
-        raise TimeoutError(
-            "MG nao mudou para a URL inicial apos 3 tentativas de envio do link."
-        )
 
     def _normalizar_url_mg(self, url: str) -> str:
         return (url or "").strip().rstrip("/").lower()
@@ -249,8 +235,6 @@ class RotinaMGPadrao(RotinaEstado):
         return estado == "erro"
 
     def _ponto_cloud_flare(self, estado: str) -> tuple[int, int]:
-        # Quando ha erro visivel na pagina, o campo da chave sai do layout
-        # inicial e passa a usar outra faixa vertical.
         if self._estado_usa_layout_erro_mg(estado):
             self.bot.mover_mouse_humano(*self.CLOUD_FLARE)
             self.bot.esperar(0.2)
@@ -325,10 +309,7 @@ class RotinaMGPadrao(RotinaEstado):
             print("MG texto copiado vazio nesta tentativa")
         return texto
 
-    def _ler_estado_pagina_mg(self, texto: str | None = None) -> str:
-
-        print("MG lendo estado da pagina com novo clipboard")
-        texto = self._copiar_texto_pagina_mg()
+    def _classificar_estado_pagina_mg(self, texto: str) -> str:
         print(f"MG estado com texto ja fornecido -> {len(texto)} caracteres")
 
         if self._texto_eh_resultado_mg(texto):
@@ -343,16 +324,21 @@ class RotinaMGPadrao(RotinaEstado):
         print("MG classificacao de estado -> desconhecido")
         return "desconhecido"
 
+    def _ler_estado_pagina_mg(self, texto: str | None = None) -> str:
+        if texto is None:
+            print("MG lendo estado da pagina com novo clipboard")
+            texto = self._copiar_texto_pagina_mg()
+        return self._classificar_estado_pagina_mg(texto)
+
     def _url_atual_eh_inicial_mg(self, url: str) -> bool:
         return self._normalizar_url_mg(url) == self._normalizar_url_mg(self.URL_INICIAL_MG)
-
 
     def _estado_exige_reinicio_mg(self, estado: str) -> bool:
         exige_reinicio = estado not in self.ESTADOS_CONSULTA_RECUPERAVEIS_MG and estado != "resultado"
         print(f"MG estado exige reinicio? -> {exige_reinicio} (estado={estado})")
         return exige_reinicio
 
-    def _garantir_pagina_inicial_mg(self, espera: int = 12, max_tentativas: int = 4):
+    def _garantir_pagina_inicial_mg(self, espera: int = 8, max_tentativas: int = 4, forcar_recarga: bool = False):
         print(f"MG garantindo pagina inicial -> pagina_inicializada={self.pagina_inicializada}")
 
         for tentativa in range(1, max_tentativas + 1):
@@ -360,47 +346,19 @@ class RotinaMGPadrao(RotinaEstado):
             url_atual = self.bot.obter_url_atual()
             print(f"MG URL atual antes da validacao da tela inicial -> {url_atual}")
 
-            if tentativa == 1 and self._url_atual_eh_inicial_mg(url_atual):
+            if not forcar_recarga and tentativa == 1 and self._url_atual_eh_inicial_mg(url_atual):
                 print("MG URL atual ja aponta para a pagina inicial; validando o conteudo")
             else:
                 print("MG reenviando URL inicial e recarregando para forcar a tela correta")
                 self.bot.abrir_site(self.URL_INICIAL_MG, espera=espera)
                 self.bot.atualizar_pagina(self.URL_INICIAL_MG, espera=espera)
-
-            texto_inicial = self._copiar_texto_pagina_mg()
-            estado_inicial = self._ler_estado_pagina_mg(texto_inicial)
-            print(f"MG estado apos tentativa de preparar pagina inicial -> {estado_inicial}")
-
-            if estado_inicial == "inicial":
+            estado_atual = self._ler_estado_pagina_mg()
+            if estado_atual == "inicial":
                 print("MG confirmou a tela inicial correta")
-                return
-
+                return estado_atual
             print("MG tela inicial ainda nao confirmou; nova tentativa sera executada")
 
         raise TimeoutError("MG nao confirmou a tela inicial correta apos varias tentativas de recarga.")
-
-    def executar(self, chave: str, linha: dict) -> dict:
-        print("MG metodo executar chamado")
-        if self.modo_execucao == "simular":
-            return {
-                "status_robo": "simulado",
-                "uf": self.config.uf,
-                "url_consulta": self.config.url,
-                "texto_capturado": "",
-                "texto_audio": "",
-                "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
-            }
-
-        if not self.pagina_inicializada:
-            print(f"Abrindo link da UF {self.config.uf} uma vez: {self.URL_INICIAL_MG}")
-        else:
-            print(f"Verificando pagina inicial da UF {self.config.uf} para a proxima chave")
-
-        self._garantir_pagina_inicial_mg()
-        self.pagina_inicializada = True
-        print("MG pagina inicial pronta; iniciando fluxo da consulta")
-
-        return self._executar_passos(chave, linha)
 
     def _texto_tem_tabela_produtos_mg(self, texto: str) -> bool:
         if not texto:
@@ -434,9 +392,33 @@ class RotinaMGPadrao(RotinaEstado):
     def _reiniciar_aba_consulta(self):
         # Reinicia mais rapido recarregando a URL inicial na mesma aba.
         print("MG reiniciando fluxo pela URL inicial")
-        self._garantir_pagina_inicial_mg(espera=3, max_tentativas=4)
+        self._garantir_pagina_inicial_mg(espera=3, max_tentativas=4, forcar_recarga=True)
         self.pagina_inicializada = True
         print("MG fluxo reposicionado na pagina inicial")
+
+    def executar(self, chave: str, linha: dict) -> dict:
+        print("MG metodo executar chamado")
+        if self.modo_execucao == "simular":
+            return {
+                "status_robo": "simulado",
+                "uf": self.config.uf,
+                "url_consulta": self.config.url,
+                "texto_capturado": "",
+                "texto_audio": "",
+                "observacao": "Rotina nao executada. Use --modo executar para rodar no navegador.",
+            }
+
+        if not self.pagina_inicializada:
+            print(f"Abrindo link da UF {self.config.uf} uma vez: {self.URL_INICIAL_MG}")
+        else:
+            print(f"Verificando pagina inicial da UF {self.config.uf} para a proxima chave")
+
+        estado = self._garantir_pagina_inicial_mg()
+        self.pagina_inicializada = True
+        print("MG pagina inicial pronta; iniciando fluxo da consulta")
+
+        return self._executar_passos(estado,chave, linha)
+
 
 
 class RotinaESPadrao(RotinaEstado):

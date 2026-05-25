@@ -1,10 +1,12 @@
 import argparse
 import csv
 import re
+import zipfile
 from decimal import Decimal
 from pathlib import Path
 
-from config_ufs import obter_config_por_chave
+from ler_sped_c100 import CAMPOS_SAIDA as CAMPOS_SAIDA_SPED
+from ler_sped_c100 import parse_sped
 
 
 COMBUSTIVEIS = [
@@ -34,6 +36,16 @@ CAMPOS_SAIDA = [
     "item_vl_unit",
     "item_vl_total",
 ]
+
+PADRAO_NOME_SPED = re.compile(
+    r"^(?P<tipo_arquivo>[A-Z0-9]+)_"
+    r"(?P<periodo_inicial>\d{8})_"
+    r"(?P<periodo_final>\d{8})_"
+    r"(?P<cnpj>\d{14})_"
+    r"(?P<tipo_entrega>Original|Retificadora)_"
+    r"(?P<data_entrega>\d{14})_"
+    r"(?P<hash>[A-Fa-f0-9]+)$"
+)
 
 
 def br_decimal(valor: str) -> Decimal:
@@ -277,58 +289,104 @@ def _normalizar_quebras(texto: str) -> str:
     return re.sub(r"\n{2,}", "\n", texto)
 
 
+def analisar_nome_arquivo_sped(arquivo: Path) -> dict | None:
+    match = PADRAO_NOME_SPED.match(arquivo.stem)
+    if not match:
+        return None
+    return match.groupdict()
+
+
+def selecionar_arquivos_txt_por_periodo(arquivos: list[Path]) -> list[Path]:
+    grupos = {}
+    arquivos_sem_padrao = []
+
+    for arquivo in arquivos:
+        metadados = analisar_nome_arquivo_sped(arquivo)
+        if not metadados:
+            arquivos_sem_padrao.append(arquivo)
+            continue
+
+        chave_grupo = (
+            metadados["tipo_arquivo"],
+            metadados["periodo_inicial"],
+            metadados["periodo_final"],
+            metadados["cnpj"],
+        )
+        atual = grupos.get(chave_grupo)
+        if not atual or metadados["data_entrega"] < atual[0]["data_entrega"]:
+            grupos[chave_grupo] = (metadados, arquivo)
+
+    arquivos_selecionados = [item[1] for item in grupos.values()]
+    arquivos_selecionados.extend(arquivos_sem_padrao)
+    return sorted(arquivos_selecionados)
+
+
+def extrair_txts_selecionados_de_zip(arquivo_zip: Path, pasta_saida: Path) -> list[Path]:
+    pasta_saida.mkdir(parents=True, exist_ok=True)
+    for arquivo_existente in pasta_saida.glob("*.txt"):
+        if arquivo_existente.is_file():
+            arquivo_existente.unlink()
+
+    with zipfile.ZipFile(arquivo_zip) as zip_ref:
+        membros_txt = [
+            info for info in zip_ref.infolist()
+            if not info.is_dir() and info.filename.lower().endswith(".txt")
+        ]
+        nomes = [Path(info.filename).name for info in membros_txt]
+        caminhos_temporarios = [Path(nome) for nome in nomes]
+        nomes_selecionados = {
+            arquivo.name
+            for arquivo in selecionar_arquivos_txt_por_periodo(caminhos_temporarios)
+        }
+
+        arquivos_extraidos = []
+        for info in membros_txt:
+            nome_arquivo = Path(info.filename).name
+            if nome_arquivo not in nomes_selecionados:
+                continue
+
+            destino = pasta_saida / nome_arquivo
+            with zip_ref.open(info) as origem, destino.open("wb") as saida:
+                saida.write(origem.read())
+            arquivos_extraidos.append(destino)
+
+    return sorted(arquivos_extraidos)
+
+
 def gerar_linhas_csv_de_arquivo(arquivo_texto: Path) -> list[dict[str, str]]:
-    texto = arquivo_texto.read_text(encoding="utf-8", errors="ignore")
-    campos_nfce = extrair_campos_nfce(texto)
-    chave = campos_nfce["chave"] or arquivo_texto.stem
-    itens = campos_nfce["itens"]
-
-    linha_base = {
-        "chave": chave,
-        "uf": "",
-        "url_consulta": "",
-        "arquivo_texto_capturado": str(arquivo_texto),
-        "nota_numero": campos_nfce["nota_numero"],
-        "nota_emissao": campos_nfce["nota_emissao"],
-        "tem_itens": campos_nfce["tem_itens"],
-        "tem_combustivel": campos_nfce["tem_combustivel"],
-        "combustiveis": campos_nfce["combustiveis"],
-        "litros_total": campos_nfce["litros_total"],
-        "valor_itens_combustivel": campos_nfce["valor_itens_combustivel"],
-        "item_descricao": "",
-        "item_qtde": "",
-        "item_un": "",
-        "item_vl_unit": "",
-        "item_vl_total": "",
-    }
-
-    try:
-        config = obter_config_por_chave(chave)
-        linha_base["uf"] = config.uf
-        linha_base["url_consulta"] = config.url
-    except Exception:
-        pass
-
-    if not itens:
-        return [linha_base]
-
-    linhas = []
-    for item in itens:
-        linha = dict(linha_base)
-        linha["item_descricao"] = item.get("item_descricao", "")
-        linha["item_qtde"] = item.get("item_qtde", "")
-        linha["item_un"] = item.get("item_un", "")
-        linha["item_vl_unit"] = item.get("item_vl_unit", "")
-        linha["item_vl_total"] = item.get("item_vl_total", "")
-        linhas.append(linha)
-
-    return linhas
+    notas = parse_sped(arquivo_texto)
+    return [nota.to_row() for nota in notas]
 
 
 def listar_arquivos_texto(entrada: Path) -> list[Path]:
     if entrada.is_file():
         return [entrada]
     return sorted(arquivo for arquivo in entrada.glob("*.txt") if arquivo.is_file())
+
+
+def preparar_entrada_txt(entrada: Path, pasta_txt_filtrados: Path | None = None) -> tuple[Path, int]:
+    if entrada.is_file() and entrada.suffix.lower() == ".zip":
+        if pasta_txt_filtrados is None:
+            pasta_txt_filtrados = entrada.with_name(f"{entrada.stem}_txt_filtrados")
+        arquivos_extraidos = extrair_txts_selecionados_de_zip(entrada, pasta_txt_filtrados)
+        return pasta_txt_filtrados, len(arquivos_extraidos)
+
+    arquivos = listar_arquivos_texto(entrada)
+    return entrada, len(arquivos)
+
+
+def limpar_txt_filtrados(pasta_txt_filtrados: Path) -> None:
+    if not pasta_txt_filtrados.exists() or not pasta_txt_filtrados.is_dir():
+        return
+
+    for arquivo in pasta_txt_filtrados.glob("*.txt"):
+        if arquivo.is_file():
+            arquivo.unlink()
+
+    try:
+        pasta_txt_filtrados.rmdir()
+    except OSError:
+        pass
 
 
 def gerar_csv_de_textos_capturados(entrada: Path, saida: Path, delimitador: str) -> int:
@@ -339,7 +397,7 @@ def gerar_csv_de_textos_capturados(entrada: Path, saida: Path, delimitador: str)
         linhas_saida.extend(gerar_linhas_csv_de_arquivo(arquivo))
 
     with saida.open("w", encoding="utf-8", newline="") as fp:
-        writer = csv.DictWriter(fp, fieldnames=CAMPOS_SAIDA, delimiter=delimitador)
+        writer = csv.DictWriter(fp, fieldnames=CAMPOS_SAIDA_SPED, delimiter=delimitador)
         writer.writeheader()
         writer.writerows(linhas_saida)
 
@@ -352,7 +410,7 @@ def criar_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "entrada",
-        help="Arquivo .txt ou pasta com os textos capturados.",
+        help="Arquivo .txt, arquivo .zip ou pasta com os textos capturados.",
     )
     parser.add_argument(
         "--saida",
@@ -364,14 +422,26 @@ def criar_parser() -> argparse.ArgumentParser:
         default=",",
         help="Delimitador do CSV de saida.",
     )
+    parser.add_argument(
+        "--pasta-txt-filtrados",
+        default=None,
+        help="Pasta usada para salvar os .txt selecionados quando a entrada for um .zip.",
+    )
     return parser
 
 
 if __name__ == "__main__":
     args = criar_parser().parse_args()
+    entrada_original = Path(args.entrada)
+    entrada_preparada, _ = preparar_entrada_txt(
+        entrada=entrada_original,
+        pasta_txt_filtrados=Path(args.pasta_txt_filtrados) if args.pasta_txt_filtrados else None,
+    )
     quantidade = gerar_csv_de_textos_capturados(
-        entrada=Path(args.entrada),
+        entrada=entrada_preparada,
         saida=Path(args.saida),
         delimitador=args.delimitador,
     )
+    if entrada_original.suffix.lower() == ".zip":
+        limpar_txt_filtrados(entrada_preparada)
     print(f"CSV gerado com {quantidade} arquivo(s): {args.saida}")

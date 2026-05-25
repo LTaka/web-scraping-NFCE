@@ -169,12 +169,31 @@ python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executa
 
 Esse modo refaz somente a consulta da chave atual quando o texto capturado nao gerar itens, sem reprocessar o lote inteiro.
 
+Se voce ja tem um `resultado.csv` pronto e quer rodar de novo somente as chaves que ficaram com `tem_itens=nao`:
+
+```bash
+source .venv/bin/activate
+python processar_csv.py resultado.csv --saida resultado_reprocessado.csv --modo executar --somente-sem-itens
+```
+
+Esse comando le o CSV final, filtra apenas as linhas com `tem_itens=nao` e deduplica por chave antes de rodar novamente.
+
 ## 8. Como gerar o CSV a partir do SPED
 
 Para ler um arquivo `SPED EFD`, filtrar os registros `C100` de modelo `65` e gerar o CSV base do robo:
 
 ```bash
 python ler_sped_c100.py arquivo-sped.txt --saida exemplo_entrada.csv
+```
+
+Para ler arquivo.zip com speds 
+```bash
+
+python3 extrator_nfce.py arquivo.zip --saida exemplo_entrada.csv 
+
+ou 
+
+python3 extrator_nfce.py "arquivos com espacamento.zip" --saida exemplo_entrada.csv  --pasta-txt-filtrados txt_filtrados
 ```
 
 O CSV gerado sai com estas colunas:
@@ -238,3 +257,6 @@ Sistema Linux/Ubuntu:
 - [install_linux.sh](/home/linx/Documentos/www/web-scraping-NFCE/install_linux.sh): instalacao completa no Linux
 - [install_windows.bat](/home/linx/Documentos/www/web-scraping-NFCE/install_windows.bat): instalacao base no Windows
 - [docker-run.sh](/home/linx/Documentos/www/web-scraping-NFCE/docker-run.sh): execucao Docker simplificada no Linux
+
+
+

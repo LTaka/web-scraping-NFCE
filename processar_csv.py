@@ -41,6 +41,7 @@ def processar_csv(
     modo: str,
     repetir_sem_itens: bool = False,
     max_tentativas_sem_itens: int = 2,
+    somente_sem_itens: bool = False,
 ):
     pasta_textos = saida.parent / "textos_capturados"
     pasta_textos.mkdir(parents=True, exist_ok=True)
@@ -52,13 +53,18 @@ def processar_csv(
 
         primeira_coluna = leitor.fieldnames[0]
         fieldnames_saida = _montar_fieldnames_saida(leitor.fieldnames)
+        linhas_entrada = _carregar_linhas_entrada(
+            leitor=leitor,
+            primeira_coluna=primeira_coluna,
+            somente_sem_itens=somente_sem_itens,
+        )
 
         bot = BotVisual()
         _aguardar_preparacao_inicial(bot=bot, modo=modo)
         linhas_saida = []
         contexto = _criar_contexto_lote(bot=bot, modo=modo)
 
-        for indice, linha_original in enumerate(leitor, start=2):
+        for indice, linha_original in linhas_entrada:
             resultado = _processar_linha_csv(
                 linha_original=linha_original,
                 indice=indice,
@@ -82,6 +88,25 @@ def _montar_fieldnames_saida(fieldnames_entrada: list[str]) -> list[str]:
         if campo not in fieldnames_saida:
             fieldnames_saida.append(campo)
     return fieldnames_saida
+
+
+def _carregar_linhas_entrada(*, leitor: csv.DictReader, primeira_coluna: str, somente_sem_itens: bool) -> list[tuple[int, dict]]:
+    linhas = []
+    chaves_vistas = set()
+
+    for indice, linha in enumerate(leitor, start=2):
+        if somente_sem_itens and (linha.get("tem_itens") or "").strip().lower() != "nao":
+            continue
+
+        chave = (linha.get(primeira_coluna) or "").strip()
+        if somente_sem_itens and chave:
+            if chave in chaves_vistas:
+                continue
+            chaves_vistas.add(chave)
+
+        linhas.append((indice, linha))
+
+    return linhas
 
 
 def _aguardar_preparacao_inicial(*, bot: BotVisual, modo: str):
@@ -357,6 +382,11 @@ def criar_parser() -> argparse.ArgumentParser:
         default=2,
         help="Quantidade de retentativas extras para chaves que terminarem sem itens.",
     )
+    parser.add_argument(
+        "--somente-sem-itens",
+        action="store_true",
+        help="Lendo um CSV ja processado, executa somente as linhas com tem_itens=nao.",
+    )
     return parser
 
 
@@ -369,4 +399,5 @@ if __name__ == "__main__":
         modo=args.modo,
         repetir_sem_itens=args.repetir_sem_itens,
         max_tentativas_sem_itens=args.max_tentativas_sem_itens,
+        somente_sem_itens=args.somente_sem_itens,
     )

@@ -221,7 +221,7 @@ Quando o SPED tiver registros `C170`, o script usa esses itens para preencher `t
 Se voce ja tem uma pasta `textos_capturados` com arquivos `.txt`, o `extrator_nfce.py` le esses textos e monta um `resultado.csv`:
 
 ```bash
-python3 extrator_nfce.py textos_capturados --saida resultado.csv
+python3 extrator_nfce.py textos_capturados --saida resultado1.csv
 ```
 
 Tambem aceita um `.zip` com os textos capturados:

@@ -65,6 +65,12 @@ def dinheiro_br(valor: Decimal) -> str:
     return f"{valor:.2f}".replace(".", ",")
 
 
+def normalizar_dinheiro_br(valor: str) -> str:
+    if not valor:
+        return ""
+    return dinheiro_br(br_decimal(valor))
+
+
 def extrair_campos_nfce(texto: str) -> dict:
     texto = texto or ""
     itens = _extrair_itens(texto)
@@ -134,7 +140,7 @@ def _extrair_primeiro(texto: str, padroes: list[str]) -> str:
 
 def _extrair_chave_acesso(texto: str) -> str:
     match = re.search(
-        r"Chave\s+de\s+acesso:\s*([0-9\s]+)",
+        r"Chave\s+de\s+acesso[:\s]*([0-9.\-\/\s]+)",
         texto,
         flags=re.IGNORECASE,
     )
@@ -176,13 +182,15 @@ def _extrair_itens_tabela_mg(texto: str) -> list[dict]:
     linhas = [linha.strip() for linha in texto.splitlines() if linha.strip()]
     capturando = False
     itens = []
+    padrao_valor = r"\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}"
+    padrao_qtde = r"\d+(?:[.,]\d+)*"
     padrao_item = re.compile(
         r"^\s*\d+\s+"
         r"(?P<descricao>.+?)\s+"
-        r"(?P<qtde>\d+(?:[.,]\d+)?)\s+"
+        rf"(?P<qtde>{padrao_qtde})\s+"
         r"(?P<un>[A-Za-z]+)\s+"
-        r"R\$\s*(?P<vl_unit>\d+[.,]\d{2})\s+"
-        r"R\$\s*(?P<vl_total>\d+[.,]\d{2})\s*$"
+        rf"R\$\s*(?P<vl_unit>{padrao_valor})\s+"
+        rf"R\$\s*(?P<vl_total>{padrao_valor})\s*$"
     )
 
     for linha in linhas:
@@ -205,8 +213,8 @@ def _extrair_itens_tabela_mg(texto: str) -> list[dict]:
             "item_descricao": " ".join(match.group("descricao").split()).strip(" -:"),
             "item_qtde": match.group("qtde").replace(".", ","),
             "item_un": match.group("un"),
-            "item_vl_unit": match.group("vl_unit"),
-            "item_vl_total": match.group("vl_total"),
+            "item_vl_unit": normalizar_dinheiro_br(match.group("vl_unit")),
+            "item_vl_total": normalizar_dinheiro_br(match.group("vl_total")),
         })
 
     return itens
@@ -214,11 +222,12 @@ def _extrair_itens_tabela_mg(texto: str) -> list[dict]:
 
 def _parse_bloco_item(bloco: str) -> dict | None:
     bloco = " ".join(bloco.split())
+    padrao_valor = r"([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+,[0-9]{2})"
 
-    total_match = re.search(r"Vl\.\s*Total\s*([0-9]+,[0-9]{2})", bloco, flags=re.IGNORECASE)
+    total_match = re.search(rf"Vl\.\s*Total\s*{padrao_valor}", bloco, flags=re.IGNORECASE)
     qtd_match = re.search(r"Qtde\.:?\s*([0-9]+(?:,[0-9]+)?)", bloco, flags=re.IGNORECASE)
     un_match = re.search(r"UN:?\s*([A-Za-z]+)", bloco, flags=re.IGNORECASE)
-    unit_match = re.search(r"Vl\.\s*Unit\.:?\s*([0-9]+,[0-9]{2})", bloco, flags=re.IGNORECASE)
+    unit_match = re.search(rf"Vl\.\s*Unit\.:?\s*{padrao_valor}", bloco, flags=re.IGNORECASE)
 
     if not total_match:
         return None
@@ -234,19 +243,21 @@ def _parse_bloco_item(bloco: str) -> dict | None:
         "item_descricao": descricao.strip(),
         "item_qtde": qtd_match.group(1) if qtd_match else "",
         "item_un": un_match.group(1) if un_match else "",
-        "item_vl_unit": unit_match.group(1) if unit_match else "",
-        "item_vl_total": total_match.group(1),
+        "item_vl_unit": normalizar_dinheiro_br(unit_match.group(1)) if unit_match else "",
+        "item_vl_total": normalizar_dinheiro_br(total_match.group(1)),
     }
 
 
 def _extrair_itens_texto_corrido(texto: str) -> list[dict]:
+    padrao_valor = r"\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}"
+    padrao_qtde = r"[0-9]+(?:[.,][0-9]+)*"
     padrao = re.compile(
         r"(?P<descricao>[A-Z0-9][A-Z0-9\s./%-]{3,}?)"
         r"(?:\s*\(C[oó]digo:.*?\))?"
-        r"\s*Qtde\.:?\s*(?P<qtde>[0-9]+(?:,[0-9]+)?)"
+        rf"\s*Qtde\.:?\s*(?P<qtde>{padrao_qtde})"
         r"\s*UN:?\s*(?P<un>[A-Za-z]+)"
-        r"\s*Vl\.\s*Unit\.:?\s*(?P<vl_unit>[0-9]+,[0-9]{2})"
-        r"\s*Vl\.\s*Total\s*(?P<vl_total>[0-9]+,[0-9]{2})",
+        rf"\s*Vl\.\s*Unit\.:?\s*(?P<vl_unit>{padrao_valor})"
+        rf"\s*Vl\.\s*Total\s*(?P<vl_total>{padrao_valor})",
         flags=re.IGNORECASE,
     )
 
@@ -258,8 +269,8 @@ def _extrair_itens_texto_corrido(texto: str) -> list[dict]:
             "item_descricao": " ".join(match.group("descricao").split()).strip(" -:"),
             "item_qtde": match.group("qtde"),
             "item_un": match.group("un"),
-            "item_vl_unit": match.group("vl_unit"),
-            "item_vl_total": match.group("vl_total"),
+            "item_vl_unit": normalizar_dinheiro_br(match.group("vl_unit")),
+            "item_vl_total": normalizar_dinheiro_br(match.group("vl_total")),
         })
 
     return _deduplicar_itens(itens)

@@ -14,10 +14,7 @@ ESPERA_PREPARACAO_INICIAL = 5
 
 CAMPOS_ADICIONAIS = [
     "uf",
-    "url_consulta",
-    "status_robo",
     "arquivo_texto_capturado",
-    "observacao",
     "nota_numero",
     "nota_emissao",
     "item_descricao",

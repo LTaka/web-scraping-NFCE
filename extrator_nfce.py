@@ -5,9 +5,6 @@ import zipfile
 from decimal import Decimal
 from pathlib import Path
 
-from ler_sped_c100 import CAMPOS_SAIDA as CAMPOS_SAIDA_SPED
-from ler_sped_c100 import parse_sped
-
 
 COMBUSTIVEIS = [
     "GASOLINA",
@@ -20,8 +17,6 @@ COMBUSTIVEIS = [
 
 CAMPOS_SAIDA = [
     "chave",
-    "uf",
-    "url_consulta",
     "arquivo_texto_capturado",
     "nota_numero",
     "nota_emissao",
@@ -37,15 +32,23 @@ CAMPOS_SAIDA = [
     "item_vl_total",
 ]
 
-PADRAO_NOME_SPED = re.compile(
-    r"^(?P<tipo_arquivo>[A-Z0-9]+)_"
-    r"(?P<periodo_inicial>\d{8})_"
-    r"(?P<periodo_final>\d{8})_"
-    r"(?P<cnpj>\d{14})_"
-    r"(?P<tipo_entrega>Original|Retificadora)_"
-    r"(?P<data_entrega>\d{14})_"
-    r"(?P<hash>[A-Fa-f0-9]+)$"
-)
+CAMPOS_ITEM = [
+    "item_descricao",
+    "item_qtde",
+    "item_un",
+    "item_vl_unit",
+    "item_vl_total",
+]
+
+CAMPOS_NFCE = [
+    "nota_numero",
+    "nota_emissao",
+    "tem_itens",
+    "tem_combustivel",
+    "combustiveis",
+    "litros_total",
+    "valor_itens_combustivel",
+]
 
 
 def br_decimal(valor: str) -> Decimal:
@@ -289,63 +292,25 @@ def _normalizar_quebras(texto: str) -> str:
     return re.sub(r"\n{2,}", "\n", texto)
 
 
-def analisar_nome_arquivo_sped(arquivo: Path) -> dict | None:
-    match = PADRAO_NOME_SPED.match(arquivo.stem)
-    if not match:
-        return None
-    return match.groupdict()
+def listar_arquivos_texto(entrada: Path) -> list[Path]:
+    if entrada.is_file():
+        return [entrada]
+    return sorted(arquivo for arquivo in entrada.glob("*.txt") if arquivo.is_file())
 
 
-def selecionar_arquivos_txt_por_periodo(arquivos: list[Path]) -> list[Path]:
-    grupos = {}
-    arquivos_sem_padrao = []
-
-    for arquivo in arquivos:
-        metadados = analisar_nome_arquivo_sped(arquivo)
-        if not metadados:
-            arquivos_sem_padrao.append(arquivo)
-            continue
-
-        chave_grupo = (
-            metadados["tipo_arquivo"],
-            metadados["periodo_inicial"],
-            metadados["periodo_final"],
-            metadados["cnpj"],
-        )
-        atual = grupos.get(chave_grupo)
-        if not atual or metadados["data_entrega"] < atual[0]["data_entrega"]:
-            grupos[chave_grupo] = (metadados, arquivo)
-
-    arquivos_selecionados = [item[1] for item in grupos.values()]
-    arquivos_selecionados.extend(arquivos_sem_padrao)
-    return sorted(arquivos_selecionados)
-
-
-def extrair_txts_selecionados_de_zip(arquivo_zip: Path, pasta_saida: Path) -> list[Path]:
+def extrair_txts_de_zip(arquivo_zip: Path, pasta_saida: Path) -> list[Path]:
     pasta_saida.mkdir(parents=True, exist_ok=True)
     for arquivo_existente in pasta_saida.glob("*.txt"):
         if arquivo_existente.is_file():
             arquivo_existente.unlink()
 
     with zipfile.ZipFile(arquivo_zip) as zip_ref:
-        membros_txt = [
-            info for info in zip_ref.infolist()
-            if not info.is_dir() and info.filename.lower().endswith(".txt")
-        ]
-        nomes = [Path(info.filename).name for info in membros_txt]
-        caminhos_temporarios = [Path(nome) for nome in nomes]
-        nomes_selecionados = {
-            arquivo.name
-            for arquivo in selecionar_arquivos_txt_por_periodo(caminhos_temporarios)
-        }
-
         arquivos_extraidos = []
-        for info in membros_txt:
-            nome_arquivo = Path(info.filename).name
-            if nome_arquivo not in nomes_selecionados:
+        for info in zip_ref.infolist():
+            if info.is_dir() or not info.filename.lower().endswith(".txt"):
                 continue
 
-            destino = pasta_saida / nome_arquivo
+            destino = pasta_saida / Path(info.filename).name
             with zip_ref.open(info) as origem, destino.open("wb") as saida:
                 saida.write(origem.read())
             arquivos_extraidos.append(destino)
@@ -353,22 +318,11 @@ def extrair_txts_selecionados_de_zip(arquivo_zip: Path, pasta_saida: Path) -> li
     return sorted(arquivos_extraidos)
 
 
-def gerar_linhas_csv_de_arquivo(arquivo_texto: Path) -> list[dict[str, str]]:
-    notas = parse_sped(arquivo_texto)
-    return [nota.to_row() for nota in notas]
-
-
-def listar_arquivos_texto(entrada: Path) -> list[Path]:
-    if entrada.is_file():
-        return [entrada]
-    return sorted(arquivo for arquivo in entrada.glob("*.txt") if arquivo.is_file())
-
-
-def preparar_entrada_txt(entrada: Path, pasta_txt_filtrados: Path | None = None) -> tuple[Path, int]:
+def preparar_entrada_textos(entrada: Path, pasta_txt_filtrados: Path | None = None) -> tuple[Path, int]:
     if entrada.is_file() and entrada.suffix.lower() == ".zip":
         if pasta_txt_filtrados is None:
             pasta_txt_filtrados = entrada.with_name(f"{entrada.stem}_txt_filtrados")
-        arquivos_extraidos = extrair_txts_selecionados_de_zip(entrada, pasta_txt_filtrados)
+        arquivos_extraidos = extrair_txts_de_zip(entrada, pasta_txt_filtrados)
         return pasta_txt_filtrados, len(arquivos_extraidos)
 
     arquivos = listar_arquivos_texto(entrada)
@@ -389,33 +343,172 @@ def limpar_txt_filtrados(pasta_txt_filtrados: Path) -> None:
         pass
 
 
+def carregar_textos_por_chave(entrada: Path) -> dict[str, dict]:
+    textos = {}
+
+    for arquivo in listar_arquivos_texto(entrada):
+        texto = arquivo.read_text(encoding="utf-8", errors="ignore")
+        campos_nfce = extrair_campos_nfce(texto)
+        chave_arquivo = arquivo.stem.strip()
+        chave_texto = (campos_nfce.get("chave") or "").strip()
+        chave = chave_arquivo or chave_texto
+        if not chave:
+            continue
+
+        if not chave_texto:
+            campos_nfce["chave"] = chave
+
+        textos[chave] = {
+            "arquivo": arquivo,
+            "texto": texto,
+            "campos_nfce": campos_nfce,
+        }
+
+    return textos
+
+
+def _montar_fieldnames_saida(fieldnames_entrada: list[str] | None = None) -> list[str]:
+    fieldnames_saida = list(fieldnames_entrada or [])
+    for campo in CAMPOS_SAIDA:
+        if campo not in fieldnames_saida:
+            fieldnames_saida.append(campo)
+    return fieldnames_saida or list(CAMPOS_SAIDA)
+
+
+def _aplicar_campos_nfce_na_linha(linha: dict, campos_nfce: dict, caminho_texto: Path | None) -> dict:
+    linha["chave"] = campos_nfce.get("chave") or linha.get("chave", "")
+    linha["arquivo_texto_capturado"] = str(caminho_texto) if caminho_texto else linha.get("arquivo_texto_capturado", "")
+
+    for campo in CAMPOS_NFCE:
+        linha[campo] = campos_nfce.get(campo, "")
+
+    return linha
+
+
+def _limpar_campos_item(linha: dict) -> dict:
+    for campo in CAMPOS_ITEM:
+        linha[campo] = ""
+    return linha
+
+
+def _expandir_resultado_saida(linha_base: dict, campos_nfce: dict) -> list[dict]:
+    itens = campos_nfce["itens"]
+
+    if not itens:
+        return [_limpar_campos_item(dict(linha_base))]
+
+    linhas_expandidas = []
+    for item in itens:
+        linha_item = _limpar_campos_item(dict(linha_base))
+        linha_item["item_descricao"] = item.get("item_descricao", "")
+        linha_item["item_qtde"] = item.get("item_qtde", "")
+        linha_item["item_un"] = item.get("item_un", "")
+        linha_item["item_vl_unit"] = item.get("item_vl_unit", "")
+        linha_item["item_vl_total"] = item.get("item_vl_total", "")
+        linhas_expandidas.append(linha_item)
+    return linhas_expandidas
+
+
 def gerar_csv_de_textos_capturados(entrada: Path, saida: Path, delimitador: str) -> int:
-    arquivos = listar_arquivos_texto(entrada)
+    textos_por_chave = carregar_textos_por_chave(entrada)
+    fieldnames_saida = _montar_fieldnames_saida()
     linhas_saida = []
 
-    for arquivo in arquivos:
-        linhas_saida.extend(gerar_linhas_csv_de_arquivo(arquivo))
+    for chave in sorted(textos_por_chave):
+        dados = textos_por_chave[chave]
+        campos_nfce = dados["campos_nfce"]
+        linha_base = {"chave": chave}
+        _aplicar_campos_nfce_na_linha(linha_base, campos_nfce, dados["arquivo"])
+        linhas_saida.extend(_expandir_resultado_saida(linha_base, campos_nfce))
 
     with saida.open("w", encoding="utf-8", newline="") as fp:
-        writer = csv.DictWriter(fp, fieldnames=CAMPOS_SAIDA_SPED, delimiter=delimitador)
+        writer = csv.DictWriter(fp, fieldnames=fieldnames_saida, delimiter=delimitador)
         writer.writeheader()
         writer.writerows(linhas_saida)
 
-    return len(arquivos)
+    return len(textos_por_chave)
+
+
+def atualizar_csv_existente_com_textos(
+    *,
+    entrada_csv: Path,
+    saida: Path,
+    pasta_textos: Path,
+    delimitador: str,
+    somente_sem_itens: bool,
+) -> int:
+    textos_por_chave = carregar_textos_por_chave(pasta_textos)
+
+    with entrada_csv.open("r", encoding="utf-8-sig", newline="") as arquivo_entrada:
+        leitor = csv.DictReader(arquivo_entrada, delimiter=delimitador)
+        if not leitor.fieldnames:
+            raise ValueError("O CSV base precisa ter cabecalho.")
+
+        fieldnames_saida = _montar_fieldnames_saida(leitor.fieldnames)
+        linhas_entrada = list(leitor)
+
+    grupos = {}
+    ordem_chaves = []
+    for linha in linhas_entrada:
+        chave = (linha.get("chave") or "").strip()
+        if chave not in grupos:
+            grupos[chave] = []
+            ordem_chaves.append(chave)
+        grupos[chave].append(linha)
+
+    linhas_saida = []
+    chaves_atualizadas = 0
+
+    for chave in ordem_chaves:
+        grupo = grupos[chave]
+        linha_representante = dict(grupo[0])
+        texto_disponivel = textos_por_chave.get(chave)
+
+        if not texto_disponivel:
+            linhas_saida.extend(grupo)
+            continue
+
+        if somente_sem_itens and (linha_representante.get("tem_itens") or "").strip().lower() != "nao":
+            linhas_saida.extend(grupo)
+            continue
+
+        campos_nfce = texto_disponivel["campos_nfce"]
+        linha_atualizada = _aplicar_campos_nfce_na_linha(
+            dict(linha_representante),
+            campos_nfce,
+            texto_disponivel["arquivo"],
+        )
+        linhas_saida.extend(_expandir_resultado_saida(linha_atualizada, campos_nfce))
+        chaves_atualizadas += 1
+
+    with saida.open("w", encoding="utf-8", newline="") as arquivo_saida:
+        escritor = csv.DictWriter(arquivo_saida, fieldnames=fieldnames_saida, delimiter=delimitador)
+        escritor.writeheader()
+        escritor.writerows([
+            {campo: linha.get(campo, "") for campo in fieldnames_saida}
+            for linha in linhas_saida
+        ])
+
+    return chaves_atualizadas
 
 
 def criar_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Le arquivos .txt capturados de NFC-e e gera um CSV com os campos extraidos.",
+        description="Le textos capturados de NFC-e e gera ou atualiza um resultado.csv.",
     )
     parser.add_argument(
         "entrada",
-        help="Arquivo .txt, arquivo .zip ou pasta com os textos capturados.",
+        help="Pasta com .txt, arquivo .txt ou arquivo .zip com os textos capturados.",
     )
     parser.add_argument(
         "--saida",
         default="resultado.csv",
         help="Caminho do CSV de saida.",
+    )
+    parser.add_argument(
+        "--csv-base",
+        default=None,
+        help="CSV existente para atualizar pelas chaves dos textos capturados.",
     )
     parser.add_argument(
         "--delimitador",
@@ -425,7 +518,12 @@ def criar_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pasta-txt-filtrados",
         default=None,
-        help="Pasta usada para salvar os .txt selecionados quando a entrada for um .zip.",
+        help="Pasta temporaria usada para extrair .txt quando a entrada for um .zip.",
+    )
+    parser.add_argument(
+        "--somente-sem-itens",
+        action="store_true",
+        help="Ao usar --csv-base, atualiza apenas linhas que hoje estao com tem_itens=nao.",
     )
     return parser
 
@@ -433,15 +531,27 @@ def criar_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     args = criar_parser().parse_args()
     entrada_original = Path(args.entrada)
-    entrada_preparada, _ = preparar_entrada_txt(
+    entrada_preparada, _ = preparar_entrada_textos(
         entrada=entrada_original,
         pasta_txt_filtrados=Path(args.pasta_txt_filtrados) if args.pasta_txt_filtrados else None,
     )
-    quantidade = gerar_csv_de_textos_capturados(
-        entrada=entrada_preparada,
-        saida=Path(args.saida),
-        delimitador=args.delimitador,
-    )
+
+    if args.csv_base:
+        quantidade = atualizar_csv_existente_com_textos(
+            entrada_csv=Path(args.csv_base),
+            saida=Path(args.saida),
+            pasta_textos=entrada_preparada,
+            delimitador=args.delimitador,
+            somente_sem_itens=args.somente_sem_itens,
+        )
+        print(f"CSV atualizado com {quantidade} chave(s): {args.saida}")
+    else:
+        quantidade = gerar_csv_de_textos_capturados(
+            entrada=entrada_preparada,
+            saida=Path(args.saida),
+            delimitador=args.delimitador,
+        )
+        print(f"CSV gerado com {quantidade} texto(s): {args.saida}")
+
     if entrada_original.suffix.lower() == ".zip":
         limpar_txt_filtrados(entrada_preparada)
-    print(f"CSV gerado com {quantidade} arquivo(s): {args.saida}")

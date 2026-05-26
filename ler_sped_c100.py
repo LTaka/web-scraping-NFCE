@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+import re
+import zipfile
 
 
 CAMPOS_SAIDA = [
@@ -30,6 +32,16 @@ COMBUSTIVEIS = [
 ]
 
 COD_SIT_PERMITIDOS = {"00", "01", "0"}
+
+PADRAO_NOME_SPED = re.compile(
+    r"^(?P<tipo_arquivo>[A-Z0-9]+)_"
+    r"(?P<periodo_inicial>\d{8})_"
+    r"(?P<periodo_final>\d{8})_"
+    r"(?P<cnpj>\d{14})_"
+    r"(?P<tipo_entrega>Original|Retificadora)_"
+    r"(?P<data_entrega>\d{14})_"
+    r"(?P<hash>[A-Fa-f0-9]+)$"
+)
 
 
 @dataclass
@@ -206,11 +218,128 @@ def resolver_arquivo_entrada(caminho: str) -> Path:
     )
 
 
+def analisar_nome_arquivo_sped(arquivo: Path) -> dict | None:
+    match = PADRAO_NOME_SPED.match(arquivo.stem)
+    if not match:
+        return None
+    return match.groupdict()
+
+
+def selecionar_arquivos_txt_por_periodo(arquivos: list[Path]) -> list[Path]:
+    grupos = {}
+    arquivos_sem_padrao = []
+
+    for arquivo in arquivos:
+        metadados = analisar_nome_arquivo_sped(arquivo)
+        if not metadados:
+            arquivos_sem_padrao.append(arquivo)
+            continue
+
+        chave_grupo = (
+            metadados["tipo_arquivo"],
+            metadados["periodo_inicial"],
+            metadados["periodo_final"],
+            metadados["cnpj"],
+        )
+        atual = grupos.get(chave_grupo)
+        if not atual or metadados["data_entrega"] < atual[0]["data_entrega"]:
+            grupos[chave_grupo] = (metadados, arquivo)
+
+    arquivos_selecionados = [item[1] for item in grupos.values()]
+    arquivos_selecionados.extend(arquivos_sem_padrao)
+    return sorted(arquivos_selecionados)
+
+
+def extrair_txts_selecionados_de_zip(arquivo_zip: Path, pasta_saida: Path) -> list[Path]:
+    pasta_saida.mkdir(parents=True, exist_ok=True)
+    for arquivo_existente in pasta_saida.glob("*.txt"):
+        if arquivo_existente.is_file():
+            arquivo_existente.unlink()
+
+    with zipfile.ZipFile(arquivo_zip) as zip_ref:
+        membros_txt = [
+            info for info in zip_ref.infolist()
+            if not info.is_dir() and info.filename.lower().endswith(".txt")
+        ]
+        nomes = [Path(info.filename).name for info in membros_txt]
+        caminhos_temporarios = [Path(nome) for nome in nomes]
+        nomes_selecionados = {
+            arquivo.name
+            for arquivo in selecionar_arquivos_txt_por_periodo(caminhos_temporarios)
+        }
+
+        arquivos_extraidos = []
+        for info in membros_txt:
+            nome_arquivo = Path(info.filename).name
+            if nome_arquivo not in nomes_selecionados:
+                continue
+
+            destino = pasta_saida / nome_arquivo
+            with zip_ref.open(info) as origem, destino.open("wb") as saida:
+                saida.write(origem.read())
+            arquivos_extraidos.append(destino)
+
+    return sorted(arquivos_extraidos)
+
+
+def listar_arquivos_texto(entrada: Path) -> list[Path]:
+    if entrada.is_file():
+        return [entrada]
+    return sorted(arquivo for arquivo in entrada.glob("*.txt") if arquivo.is_file())
+
+
+def preparar_entrada_txt(entrada: Path, pasta_txt_filtrados: Path | None = None) -> tuple[Path, int]:
+    if entrada.is_file() and entrada.suffix.lower() == ".zip":
+        if pasta_txt_filtrados is None:
+            pasta_txt_filtrados = entrada.with_name(f"{entrada.stem}_txt_filtrados")
+        arquivos_extraidos = extrair_txts_selecionados_de_zip(entrada, pasta_txt_filtrados)
+        return pasta_txt_filtrados, len(arquivos_extraidos)
+
+    arquivos = listar_arquivos_texto(entrada)
+    return entrada, len(arquivos)
+
+
+def limpar_txt_filtrados(pasta_txt_filtrados: Path) -> None:
+    if not pasta_txt_filtrados.exists() or not pasta_txt_filtrados.is_dir():
+        return
+
+    for arquivo in pasta_txt_filtrados.glob("*.txt"):
+        if arquivo.is_file():
+            arquivo.unlink()
+
+    try:
+        pasta_txt_filtrados.rmdir()
+    except OSError:
+        pass
+
+
+def deduplicar_notas_por_chave(notas: list[NotaC100]) -> list[NotaC100]:
+    vistos = set()
+    notas_filtradas = []
+
+    for nota in notas:
+        chave = (nota.chave or "").strip()
+        if chave and chave in vistos:
+            continue
+        if chave:
+            vistos.add(chave)
+        notas_filtradas.append(nota)
+
+    return notas_filtradas
+
+
+def carregar_notas_de_entrada(entrada: Path) -> list[NotaC100]:
+    notas = []
+    for arquivo in listar_arquivos_texto(entrada):
+        notas.extend(parse_sped(arquivo))
+    return deduplicar_notas_por_chave(notas)
+
+
 def criar_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Le um arquivo SPED EFD e gera um CSV com notas C100 de modelo 65.",
+        description="Le arquivo .txt, .zip ou pasta de SPED EFD e gera um CSV com notas C100 de modelo 65.",
     )
-    parser.add_argument("entrada", help="Caminho do arquivo SPED.")
+    parser.add_argument("entrada", help="Caminho do arquivo .txt, .zip ou pasta com arquivos SPED.")
     parser.add_argument(
         "--saida",
         default="exemplo_entrada.csv",
@@ -221,10 +350,22 @@ def criar_parser() -> argparse.ArgumentParser:
         default=",",
         help="Delimitador do CSV de saida.",
     )
+    parser.add_argument(
+        "--pasta-txt-filtrados",
+        default=None,
+        help="Pasta usada para salvar os .txt selecionados quando a entrada for um .zip.",
+    )
     return parser
 
 
 if __name__ == "__main__":
     args = criar_parser().parse_args()
-    notas = parse_sped(resolver_arquivo_entrada(args.entrada))
+    entrada_original = resolver_arquivo_entrada(args.entrada)
+    entrada_preparada, _ = preparar_entrada_txt(
+        entrada=entrada_original,
+        pasta_txt_filtrados=Path(args.pasta_txt_filtrados) if args.pasta_txt_filtrados else None,
+    )
+    notas = carregar_notas_de_entrada(entrada_preparada)
     escrever_csv(notas, Path(args.saida), args.delimitador)
+    if entrada_original.suffix.lower() == ".zip":
+        limpar_txt_filtrados(entrada_preparada)

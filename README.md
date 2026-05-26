@@ -4,8 +4,10 @@
 source .venv/bin/activate
 python ler_sped_c100.py "24093799000176-0026978650021-20210501-20210531-0-6C559E76740D29FD9C7C180291390FC122F472C5-SPED-EFD.txt" --saida exemplo_entrada.csv
 ```
-ou 
-` ``bash
+
+Ou:
+
+```bash
 python3 ler_sped_c100.py "24093799000176-0026978650021-20210501-20210531-0-6C559E76740D29FD9C7C180291390FC122F472C5-SPED-EFD.txt" --saida exemplo_entrada.csv
 ```
 
@@ -186,17 +188,19 @@ Para ler um arquivo `SPED EFD`, filtrar os registros `C100` de modelo `65` e ger
 python ler_sped_c100.py arquivo-sped.txt --saida exemplo_entrada.csv
 ```
 
-Para ler arquivo.zip com speds 
+Tambem aceita `.zip` com varios SPEDs:
+
 ```bash
-
-python3 extrator_nfce.py arquivo.zip --saida exemplo_entrada.csv 
-
-ou 
-
-python3 extrator_nfce.py "arquivos com espacamento.zip" --saida exemplo_entrada.csv  --pasta-txt-filtrados txt_filtrados
+python3 ler_sped_c100.py arquivo.zip --saida exemplo_entrada.csv
 ```
 
-O CSV gerado sai com estas colunas:
+```bash
+python3 ler_sped_c100.py "arquivos com espacamento.zip" --saida exemplo_entrada.csv --pasta-txt-filtrados txt_filtrados
+```
+
+O script extrai os `.txt`, le os SPEDs e remove chaves duplicadas no CSV final, mantendo a primeira ocorrencia de cada chave.
+
+O CSV base gerado sai com estas colunas:
 
 - `chave`
 - `numero`
@@ -212,7 +216,61 @@ O CSV gerado sai com estas colunas:
 
 Quando o SPED tiver registros `C170`, o script usa esses itens para preencher `tem_itens` e os campos de combustivel. Se o arquivo tiver apenas `C100` e `C190`, esses campos ficam vazios ou com `nao`.
 
-## 9. Colunas adicionadas no CSV de saida
+## 9. Como transformar `textos_capturados` em `resultado.csv`
+
+Se voce ja tem uma pasta `textos_capturados` com arquivos `.txt`, o `extrator_nfce.py` le esses textos e monta um `resultado.csv`:
+
+```bash
+python3 extrator_nfce.py textos_capturados --saida resultado.csv
+```
+
+Tambem aceita um `.zip` com os textos capturados:
+
+```bash
+python3 extrator_nfce.py textos_capturados.zip --saida resultado.csv
+```
+
+Ou com caminho contendo espacos:
+
+```bash
+python3 extrator_nfce.py "textos capturados.zip" --saida resultado.csv --pasta-txt-filtrados txt_filtrados
+```
+
+Esse fluxo usa o nome do arquivo `.txt` como chave e extrai:
+
+- `nota_numero`
+- `nota_emissao`
+- `tem_itens`
+- `tem_combustivel`
+- `combustiveis`
+- `litros_total`
+- `valor_itens_combustivel`
+- itens detalhados em linhas expandidas
+
+## 10. Como atualizar um CSV ja existente com os textos capturados
+
+Se voce ja tem um CSV pronto, por exemplo gerado pelo `ler_sped_c100.py`, pode enriquecer esse CSV com os textos que existirem em `textos_capturados`.
+
+Atualizando todas as chaves que tiverem `.txt` correspondente:
+
+```bash
+python3 extrator_nfce.py textos_capturados --csv-base resultado.csv --saida resultado_atualizado.csv
+```
+
+Atualizando apenas as linhas que hoje estao com `tem_itens=nao`:
+
+```bash
+python3 extrator_nfce.py textos_capturados --csv-base resultado.csv --saida resultado_atualizado.csv --somente-sem-itens
+```
+
+Regras desse modo:
+
+- se a chave do CSV nao tiver `.txt`, a linha fica como esta
+- se existir `.txt` para a chave, os campos de NFC-e sao recalculados
+- se houver itens no texto, o script expande a saida em multiplas linhas, uma por item
+- quando usar `--somente-sem-itens`, linhas com `tem_itens=sim` permanecem intactas
+
+## 11. Colunas adicionadas no CSV de saida
 
 O script preserva as colunas originais e adiciona:
 
@@ -229,7 +287,7 @@ O script preserva as colunas originais e adiciona:
 - `item_vl_unit`
 - `item_vl_total`
 
-## 10. Dependencias do projeto
+## 12. Dependencias do projeto
 
 Python:
 
@@ -247,16 +305,17 @@ Sistema Linux/Ubuntu:
 
 - [requirements-sistema.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-sistema.txt)
 
-## 11. Arquivos principais
+## 13. Arquivos principais
 
 - [bot_visual.py](/home/linx/Documentos/www/web-scraping-NFCE/bot_visual.py): funcoes base de automacao, OCR e audio
 - [config_ufs.py](/home/linx/Documentos/www/web-scraping-NFCE/config_ufs.py): links e configuracao por estado
 - [rotinas_estaduais.py](/home/linx/Documentos/www/web-scraping-NFCE/rotinas_estaduais.py): roteiro de cada UF
-- [processar_csv.py](/home/linx/Documentos/www/web-scraping-NFCE/processar_csv.py): le o CSV e chama a rotina certa
+- [processar_csv.py](/home/linx/Documentos/www/web-scraping-NFCE/processar_csv.py): le o CSV base e chama a rotina certa por UF
+- [ler_sped_c100.py](/home/linx/Documentos/www/web-scraping-NFCE/ler_sped_c100.py): gera o CSV base a partir de arquivo SPED `.txt`, `.zip` ou pasta
+- [extrator_nfce.py](/home/linx/Documentos/www/web-scraping-NFCE/extrator_nfce.py): transforma `textos_capturados` em CSV ou atualiza um CSV existente
 - [mouse_posicao.py](/home/linx/Documentos/www/web-scraping-NFCE/mouse_posicao.py): mostra a posicao do mouse para descobrir coordenadas
 - [install_linux.sh](/home/linx/Documentos/www/web-scraping-NFCE/install_linux.sh): instalacao completa no Linux
 - [install_windows.bat](/home/linx/Documentos/www/web-scraping-NFCE/install_windows.bat): instalacao base no Windows
 - [docker-run.sh](/home/linx/Documentos/www/web-scraping-NFCE/docker-run.sh): execucao Docker simplificada no Linux
-
 
 

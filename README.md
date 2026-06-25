@@ -270,7 +270,92 @@ Regras desse modo:
 - se houver itens no texto, o script expande a saida em multiplas linhas, uma por item
 - quando usar `--somente-sem-itens`, linhas com `tem_itens=sim` permanecem intactas
 
-## 11. Colunas adicionadas no CSV de saida
+## 11. Como dividir um CSV em `entrada_1.csv` e `entrada_2.csv`
+
+Se voce receber um CSV com colunas como:
+
+```text
+chave,numero,serie,cod_sit,data,valor_total,tem_itens,tem_combustivel,combustiveis,litros_total,valor_itens_combustivel,uf,url_consulta,status_robo,arquivo_texto_capturado,observacao,nota_numero,nota_emissao,item_descricao,item_qtde,item_un,item_vl_unit,item_vl_total
+```
+
+e quiser separar apenas as linhas em que:
+
+- `tem_itens=nao`
+- `tem_combustivel=nao`
+
+use:
+
+```bash
+python3 util_csv_chaves.py dividir resultado.csv
+```
+
+Isso gera:
+
+- `entrada_1.csv`
+- `entrada_2.csv`
+
+O script:
+
+- le o CSV informado
+- filtra somente as linhas com os dois campos iguais a `nao`
+- divide o resultado em duas metades
+- deixa a primeira metade em `entrada_1.csv`
+- deixa a segunda metade em `entrada_2.csv`
+
+Se quiser nomes diferentes:
+
+```bash
+python3 util_csv_chaves.py dividir mva31.csv --saida-1 lote_a.csv --saida-2 lote_b.csv
+```
+
+## 12. Como comparar as chaves entre dois CSVs
+
+Para conferir se todas as chaves de um arquivo existem no outro e identificar faltantes:
+
+```bash
+python3 util_csv_chaves.py comparar entrada_1.csv entrada_2.csv --saida comparacao_chaves.csv
+```
+
+O arquivo `comparacao_chaves.csv` sai com as colunas:
+
+- `chave`
+- `status_comparacao`
+- `presente_arquivo_1`
+- `presente_arquivo_2`
+
+Possiveis status:
+
+- `presente_nos_dois`
+- `faltando_no_arquivo_1`
+- `faltando_no_arquivo_2`
+
+Se a coluna da chave tiver outro nome, use por exemplo:
+
+```bash
+python3 util_csv_chaves.py comparar arquivo_a.csv arquivo_b.csv --coluna-chave numero
+```
+
+## 13. Como gerar uma analise so com o que falta no conferido
+
+Se voce quer um CSV contendo apenas as linhas que estao na base mas nao estao no conferido:
+
+```bash
+python3 util_csv_chaves.py analisar-faltantes base.csv conferido.csv --saida analise_faltantes.csv
+```
+
+Nesse comando:
+
+- `base.csv` e o arquivo principal
+- `conferido.csv` e o arquivo usado para verificar se a chave existe
+- `analise_faltantes.csv` recebe somente as linhas da base que nao foram encontradas no conferido
+
+O CSV de saida copia o cabecalho da base exatamente igual, na mesma ordem. Exemplo:
+
+```text
+chave,numero,serie,cod_sit,data,valor_total,tem_itens,tem_combustivel,combustiveis,litros_total,valor_itens_combustivel
+```
+
+## 14. Colunas adicionadas no CSV de saida
 
 O script preserva as colunas originais e adiciona:
 
@@ -287,7 +372,7 @@ O script preserva as colunas originais e adiciona:
 - `item_vl_unit`
 - `item_vl_total`
 
-## 12. Dependencias do projeto
+## 15. Dependencias do projeto
 
 Python:
 
@@ -305,7 +390,7 @@ Sistema Linux/Ubuntu:
 
 - [requirements-sistema.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-sistema.txt)
 
-## 13. Arquivos principais
+## 16. Arquivos principais
 
 - [bot_visual.py](/home/linx/Documentos/www/web-scraping-NFCE/bot_visual.py): funcoes base de automacao, OCR e audio
 - [config_ufs.py](/home/linx/Documentos/www/web-scraping-NFCE/config_ufs.py): links e configuracao por estado
@@ -313,9 +398,8 @@ Sistema Linux/Ubuntu:
 - [processar_csv.py](/home/linx/Documentos/www/web-scraping-NFCE/processar_csv.py): le o CSV base e chama a rotina certa por UF
 - [ler_sped_c100.py](/home/linx/Documentos/www/web-scraping-NFCE/ler_sped_c100.py): gera o CSV base a partir de arquivo SPED `.txt`, `.zip` ou pasta
 - [extrator_nfce.py](/home/linx/Documentos/www/web-scraping-NFCE/extrator_nfce.py): transforma `textos_capturados` em CSV ou atualiza um CSV existente
+- [util_csv_chaves.py](/home/linx/Documentos/www/web-scraping-NFCE/util_csv_chaves.py): divide CSV filtrando `tem_itens=nao` e `tem_combustivel=nao`, e compara chaves entre arquivos
 - [mouse_posicao.py](/home/linx/Documentos/www/web-scraping-NFCE/mouse_posicao.py): mostra a posicao do mouse para descobrir coordenadas
 - [install_linux.sh](/home/linx/Documentos/www/web-scraping-NFCE/install_linux.sh): instalacao completa no Linux
 - [install_windows.bat](/home/linx/Documentos/www/web-scraping-NFCE/install_windows.bat): instalacao base no Windows
 - [docker-run.sh](/home/linx/Documentos/www/web-scraping-NFCE/docker-run.sh): execucao Docker simplificada no Linux
-
-

@@ -1,0 +1,97 @@
+{
+  "bot_visual.py": {
+    "mtime": 1779311009.2910702,
+    "ast_hash": "e478e708023dba7ea2361161ccaba628",
+    "semantic_hash": "e478e708023dba7ea2361161ccaba628"
+  },
+  "config_ufs.py": {
+    "mtime": 1778607466.7465725,
+    "ast_hash": "992cd9a9e67c52c47b6e65553477932e",
+    "semantic_hash": "992cd9a9e67c52c47b6e65553477932e"
+  },
+  "docker-run.sh": {
+    "mtime": 1778007195.3340352,
+    "ast_hash": "7171c886bb4fc68e15bb83df0f9a48e7",
+    "semantic_hash": "7171c886bb4fc68e15bb83df0f9a48e7"
+  },
+  "escutar.py": {
+    "mtime": 1777576045.324229,
+    "ast_hash": "3bdbe0683e314a721cc107bbb925aaf2",
+    "semantic_hash": "3bdbe0683e314a721cc107bbb925aaf2"
+  },
+  "extrator_nfce.py": {
+    "mtime": 1784649434.3740265,
+    "ast_hash": "1fc6de8b47abec3ca0ba4885b378f59d",
+    "semantic_hash": "1fc6de8b47abec3ca0ba4885b378f59d"
+  },
+  "install_linux.sh": {
+    "mtime": 1778606575.4951055,
+    "ast_hash": "e1a273947c24b084707e799667e31529",
+    "semantic_hash": "e1a273947c24b084707e799667e31529"
+  },
+  "ler_sped_c100.py": {
+    "mtime": 1779799619.4909284,
+    "ast_hash": "e859eb00f0553b29f2955cafc267d3f5",
+    "semantic_hash": "e859eb00f0553b29f2955cafc267d3f5"
+  },
+  "mouse_posicao.py": {
+    "mtime": 1777576044.2552288,
+    "ast_hash": "8f24b7398f687d5999b28d310df0988f",
+    "semantic_hash": "8f24b7398f687d5999b28d310df0988f"
+  },
+  "processar_csv.py": {
+    "mtime": 1779821112.1809492,
+    "ast_hash": "03355f27be5ef06f369c35148a703257",
+    "semantic_hash": "03355f27be5ef06f369c35148a703257"
+  },
+  "rotinas_estaduais.py": {
+    "mtime": 1779316875.7825131,
+    "ast_hash": "ac271fe409b713cf20433d79403bd038",
+    "semantic_hash": "ac271fe409b713cf20433d79403bd038"
+  },
+  "rotinas_estaduais_teste.py": {
+    "mtime": 1779317002.7397969,
+    "ast_hash": "8ebf26282baad22e904fc1e40c996373",
+    "semantic_hash": "8ebf26282baad22e904fc1e40c996373"
+  },
+  "setup_venv.sh": {
+    "mtime": 1778007195.6592553,
+    "ast_hash": "5f9d1fce5728242b4f9fa0d35e9545f6",
+    "semantic_hash": "5f9d1fce5728242b4f9fa0d35e9545f6"
+  },
+  "test_processar_csv.py": {
+    "mtime": 1784649434.626026,
+    "ast_hash": "cd3c5e80fe3bf0740f6a88ed39f2e9ed",
+    "semantic_hash": "cd3c5e80fe3bf0740f6a88ed39f2e9ed"
+  },
+  "test_util_csv_chaves.py": {
+    "mtime": 1782405398.7698975,
+    "ast_hash": "7a4beec450f40cd3e6e7dded530b640f",
+    "semantic_hash": "7a4beec450f40cd3e6e7dded530b640f"
+  },
+  "util_csv_chaves.py": {
+    "mtime": 1782405398.4798973,
+    "ast_hash": "50cd5fa4418ec3d3f52f8981cc9195f4",
+    "semantic_hash": "50cd5fa4418ec3d3f52f8981cc9195f4"
+  },
+  "README.md": {
+    "mtime": 1782405498.8382843,
+    "ast_hash": "583d155542e8d4c0cedc50d96ca92f78",
+    "semantic_hash": "583d155542e8d4c0cedc50d96ca92f78"
+  },
+  "requirements-audio.txt": {
+    "mtime": 1777576847.5481632,
+    "ast_hash": "ee4beb05711f541cce41f85ec41aa9ef",
+    "semantic_hash": "ee4beb05711f541cce41f85ec41aa9ef"
+  },
+  "requirements-sistema.txt": {
+    "mtime": 1778004809.1862364,
+    "ast_hash": "76ebf8a66fcad5a90be4122757232f1e",
+    "semantic_hash": "76ebf8a66fcad5a90be4122757232f1e"
+  },
+  "requirements.txt": {
+    "mtime": 1778606339.1651862,
+    "ast_hash": "80c19cab951a03277919af576dd659ab",
+    "semantic_hash": "80c19cab951a03277919af576dd659ab"
+  }
+}

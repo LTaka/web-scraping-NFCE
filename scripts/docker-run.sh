@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
+# Uso: scripts/docker-run.sh [entrada.csv] [saida.csv] [simular|executar]
+# Caminhos relativos a raiz do projeto (ex.: dados/entrada.csv).
 set -euo pipefail
 
-INPUT_CSV="${1:-exemplo_entrada.csv}"
-OUTPUT_CSV="${2:-resultado.csv}"
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$RAIZ"
+
+INPUT_CSV="${1:-dados/exemplo_entrada.csv}"
+OUTPUT_CSV="${2:-dados/resultado.csv}"
 MODO="${3:-executar}"
 IMAGE_NAME="${IMAGE_NAME:-webscraping-nfce}"
 DISPLAY_VALUE="${DISPLAY:-:0}"
@@ -25,7 +30,7 @@ echo "Executando container com acesso ao display do host..."
 docker run --rm -it \
   -e DISPLAY="$DISPLAY_VALUE" \
   -v "$XSOCK:$XSOCK" \
-  -v "$(pwd):/app" \
+  -v "$RAIZ/dados:/app/dados" \
   -w /app \
   "$IMAGE_NAME" \
-  python3 processar_csv.py "$INPUT_CSV" --saida "$OUTPUT_CSV" --modo "$MODO"
+  processar "$INPUT_CSV" --saida "$OUTPUT_CSV" --modo "$MODO"

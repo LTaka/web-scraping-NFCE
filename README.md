@@ -1,405 +1,175 @@
-# SPED TRANSFORMA EM CSV
+# Robo NFC-e
+
+Automacao visual para consultar NFC-e nos portais das SEFAZ por UF, extrair itens/combustiveis do texto capturado e gerar o CSV base a partir de arquivos SPED EFD.
+
+## Estrutura
+
+```text
+robo_nfce/
+├── cli.py                    # linha de comando unica (python -m robo_nfce ...)
+├── config.py                 # UFs: codigo IBGE -> URL e rotina
+├── bot/                      # automacao visual (pyautogui)
+│   ├── visual.py             # BotVisual: fachada que junta os mixins abaixo
+│   ├── mouse.py              # cliques, movimento "humano", areas aleatorias
+│   ├── teclado.py            # digitar/colar/copiar
+│   ├── navegador.py          # barra de endereco (abrir, recarregar, ler URL)
+│   ├── tela.py               # screenshot, OCR, esperar tela estabilizar
+│   ├── audio.py              # reconhecimento de voz
+│   └── area_transferencia.py # clipboard com fallback tkinter
+├── rotinas/                  # roteiro de cada UF
+│   ├── base.py               # RotinaEstado (fluxo comum)
+│   ├── registro.py           # nome da rotina -> classe (criar_rotina)
+│   ├── mg/rotina.py          # MG: automacao
+│   ├── mg/classificacao.py   # MG: classificacao do texto da pagina (testavel)
+│   ├── es.py, rj.py          # ES / RJ
+│   └── audio.py              # SP / BA (captcha de audio)
+├── processamento/lote.py     # le CSV, consulta cada chave, grava CSV enriquecido
+├── extracao/                 # texto da NFC-e -> campos/itens
+│   ├── nfce.py               # extrair_campos_nfce
+│   ├── combustivel.py        # regras de combustivel
+│   ├── formatacao.py         # numeros no formato BR
+│   ├── linhas.py             # aplicar campos / expandir 1 linha por item
+│   └── textos_capturados.py  # gerar/atualizar CSV a partir de .txt
+├── sped/                     # SPED EFD -> CSV base
+│   ├── parser.py             # registros C100/C170
+│   ├── modelos.py            # NotaC100, ItemC170
+│   └── arquivos.py           # .txt/.zip/pasta, selecao por periodo
+├── csv_chaves.py             # dividir CSV, comparar chaves, analisar faltantes
+├── utils/                    # csv, arquivos/zip, texto
+└── ferramentas/              # posicao do mouse, teste de microfone
+tests/                        # testes (unittest)
+scripts/                      # instalacao e Docker
+experimentos/                 # prototipos (ex.: rotina MG com Playwright)
+dados/                        # entradas/saidas locais (ignorado pelo git)
+```
+
+## Instalacao
+
+### Linux (Ubuntu/Debian)
 
 ```bash
+./scripts/install_linux.sh
 source .venv/bin/activate
-python ler_sped_c100.py "24093799000176-0026978650021-20210501-20210531-0-6C559E76740D29FD9C7C180291390FC122F472C5-SPED-EFD.txt" --saida exemplo_entrada.csv
 ```
 
-Ou:
+Instala pacotes de sistema ([requirements-sistema.txt](requirements-sistema.txt)), cria `.venv`, instala [requirements.txt](requirements.txt) e o Firefox do Playwright.
 
-```bash
-python3 ler_sped_c100.py "24093799000176-0026978650021-20210501-20210531-0-6C559E76740D29FD9C7C180291390FC122F472C5-SPED-EFD.txt" --saida exemplo_entrada.csv
-```
-
-# Robo por UF
-
-Projeto para:
-
-- instalar rapido em maquina nova
-- rodar local com `venv`
-- usar Docker no Linux com X11 quando fizer sentido
-- ler um CSV e executar a rotina por UF
-- completar o CSV com os dados capturados
-
-## 1. Recomendacao pratica
-
-Use o modo local com `venv` como caminho principal.
-
-Motivo:
-
-- `pyautogui` controla mouse e teclado da maquina real
-- OCR e clipboard funciona m melhor fora do container
-- evita erros de `Xlib.xauth`, `XAUTHORITY` e permissao de display
-
-Deixe o Docker como alternativa secundaria para Linux com X11.
-
-## 2. Instalacao rapida no Linux
-
-Em Ubuntu/Debian:
-
-```bash
-chmod +x install_linux.sh
-./install_linux.sh
-source .venv/bin/activate
-```
-
-Esse script:
-
-- instala dependencias do sistema
-- cria `.venv`
-- instala dependencias Python
-- instala o Firefox do Playwright
-
-Se quiser audio de microfone:
-
-```bash
-source .venv/bin/activate
-pip install -r requirements-audio.txt
-```
-
-## 3. Instalacao rapida no Windows
-
-No Prompt de Comando:
+### Windows
 
 ```bat
-install_windows.bat
-```
-
-Depois ative:
-
-```bat
+scripts\install_windows.bat
 .venv\Scripts\activate.bat
 ```
 
-No Windows o script instala a parte Python. Para OCR, ainda precisa instalar o Tesseract manualmente:
+Instale tambem o Tesseract OCR (https://github.com/UB-Mannheim/tesseract/wiki) com o idioma Portuguese.
 
-- `https://github.com/UB-Mannheim/tesseract/wiki`
-- durante a instalacao, inclua o idioma `Portuguese`
+### Audio (opcional)
 
-O instalador tambem baixa o navegador `Firefox` do Playwright.
-
-Se quiser audio de microfone:
-
-```bat
+```bash
 pip install -r requirements-audio.txt
 ```
 
-## 4. Docker no Linux
-
-Use Docker apenas se:
-
-- voce estiver em Linux
-- sua sessao grafica tiver X11 disponivel
-- quiser isolar o ambiente
-
-Rodar:
+### Como pacote (opcional)
 
 ```bash
-chmod +x docker-run.sh
-./docker-run.sh exemplo_entrada.csv resultado.csv executar
+pip install -e .          # disponibiliza o comando `robo-nfce`
+pip install -e ".[audio]"
 ```
 
-O script:
+## Uso
 
-- libera acesso local do Docker ao X11 com `xhost +local:docker`
-- monta `/tmp/.X11-unix`
-- executa o bot dentro do container
+Todos os comandos: `python -m robo_nfce <comando> --help`. Use `-v` para logs detalhados (ex.: `python -m robo_nfce -v processar ...`).
 
-Limites importantes:
+### 1. SPED -> CSV base
 
-- em Wayland puro, WSL e Windows o Docker grafico tende a dar problema
-- se aparecer erro de display, prefira o modo local com `venv`
-- este projeto nao depende de Docker para funcionar
-
-## 5. Onde configurar os links por estado
-
-Edite [config_ufs.py](/home/linx/Documentos/www/web-scraping-NFCE/config_ufs.py).
-
-Hoje o arquivo ja vem com estes exemplos:
-
-- `31 -> MG -> https://preencher-link-mg-aqui`
-- `32 -> ES -> https://preencher-link-es-aqui`
-
-Cada UF tem:
-
-- codigo IBGE de 2 digitos
-- sigla
-- nome
-- link de entrada
-- nome da rotina
-- se usa audio ou nao
-
-## 6. Onde criar a rotina de cada estado
-
-Edite [rotinas_estaduais.py](/home/linx/Documentos/www/web-scraping-NFCE/rotinas_estaduais.py).
-
-Classes de exemplo:
-
-- `RotinaMGPadrao`
-- `RotinaESComAudio`
-
-Em cada uma voce vai colocar:
-
-- cliques (`self.bot.clicar(x, y)`)
-- digitacao (`self.bot.escrever(...)`)
-- tabs e enter (`self.bot.pressionar(...)`)
-- leitura OCR da tela
-- captura de audio, quando precisar
-
-## 7. Como processar o CSV
-
-Exemplo em modo simulacao:
+Filtra `C100` modelo `65` (cod_sit `00`/`01`), usa `C170` para itens/combustivel e remove chaves duplicadas.
 
 ```bash
-source .venv/bin/activate
-python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo simular
+python -m robo_nfce sped arquivo-sped.txt --saida dados/entrada.csv
+python -m robo_nfce sped "arquivos sped.zip" --saida dados/entrada.csv --pasta-txt-filtrados txt_filtrados
 ```
 
-Para rodar de verdade:
+Com `.zip`, para cada (periodo, CNPJ) usa apenas a entrega mais antiga.
+
+Colunas: `chave, numero, serie, cod_sit, data, valor_total, tem_itens, tem_combustivel, combustiveis, litros_total, valor_itens_combustivel`.
+
+### 2. Consultar as chaves (robo)
+
+A UF e definida pelos 2 primeiros digitos da chave; o CSV deve conter uma unica UF.
 
 ```bash
-source .venv/bin/activate
-python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar
+# simulacao (nao mexe no navegador)
+python -m robo_nfce processar dados/entrada.csv --saida dados/resultado.csv --modo simular
+
+# execucao real: deixe o navegador aberto e focado; o robo espera 5s antes de comecar
+python -m robo_nfce processar dados/entrada.csv --saida dados/resultado.csv --modo executar
+
+# refaz a chave atual se vier sem itens (ate 2 tentativas extras)
+python -m robo_nfce processar dados/entrada.csv --saida dados/resultado.csv --modo executar \
+    --repetir-sem-itens --max-tentativas-sem-itens 2
+
+# reprocessa apenas as chaves com tem_itens=nao de um resultado anterior
+python -m robo_nfce processar dados/resultado.csv --saida dados/resultado_reprocessado.csv \
+    --modo executar --somente-sem-itens
 ```
 
-Se quiser repetir apenas as chaves que terminarem com `tem_itens=nao`:
+Os textos de cada consulta ficam em `textos_capturados/<chave>.txt`, na mesma pasta do CSV de saida.
+O CSV de saida mantem as colunas originais e adiciona `uf, arquivo_texto_capturado, nota_numero, nota_emissao, item_descricao, item_qtde, item_un, item_vl_unit, item_vl_total` (uma linha por item).
+
+Mova o mouse para o canto superior esquerdo para interromper o robo (failsafe do pyautogui).
+
+### 3. Textos capturados -> CSV
 
 ```bash
-source .venv/bin/activate
-python processar_csv.py exemplo_entrada.csv --saida resultado.csv --modo executar --repetir-sem-itens --max-tentativas-sem-itens 2
+# gera CSV novo
+python -m robo_nfce extrair dados/textos_capturados --saida dados/resultado.csv
+python -m robo_nfce extrair "textos capturados.zip" --saida dados/resultado.csv
+
+# atualiza um CSV existente (somente chaves que tiverem .txt)
+python -m robo_nfce extrair dados/textos_capturados --csv-base dados/resultado.csv \
+    --saida dados/resultado_atualizado.csv [--somente-sem-itens]
 ```
 
-Esse modo refaz somente a consulta da chave atual quando o texto capturado nao gerar itens, sem reprocessar o lote inteiro.
-
-Se voce ja tem um `resultado.csv` pronto e quer rodar de novo somente as chaves que ficaram com `tem_itens=nao`:
+### 4. Ferramentas de CSV
 
 ```bash
-source .venv/bin/activate
-python processar_csv.py resultado.csv --saida resultado_reprocessado.csv --modo executar --somente-sem-itens
+# filtra tem_itens=nao e tem_combustivel=nao e divide ao meio
+python -m robo_nfce csv dividir dados/resultado.csv --saida-1 dados/lote_a.csv --saida-2 dados/lote_b.csv
+
+# compara chaves entre dois arquivos (presente_nos_dois / faltando_no_arquivo_1 / faltando_no_arquivo_2)
+python -m robo_nfce csv comparar dados/a.csv dados/b.csv --saida dados/comparacao_chaves.csv [--coluna-chave numero]
+
+# linhas da base cuja chave nao esta no conferido (mesmo cabecalho da base)
+python -m robo_nfce csv analisar-faltantes dados/base.csv dados/conferido.csv --saida dados/analise_faltantes.csv
 ```
 
-Esse comando le o CSV final, filtra apenas as linhas com `tem_itens=nao` e deduplica por chave antes de rodar novamente.
-
-## 8. Como gerar o CSV a partir do SPED
-
-Para ler um arquivo `SPED EFD`, filtrar os registros `C100` de modelo `65` e gerar o CSV base do robo:
+### 5. Calibracao
 
 ```bash
-python ler_sped_c100.py arquivo-sped.txt --saida exemplo_entrada.csv
+python -m robo_nfce.ferramentas.posicao_mouse        # imprime x,y do mouse a cada segundo
+python -m robo_nfce.ferramentas.escutar_microfone    # testa reconhecimento de voz
 ```
 
-Tambem aceita `.zip` com varios SPEDs:
+## Adicionar ou ajustar uma UF
+
+1. Cadastre a UF em [robo_nfce/config.py](robo_nfce/config.py) (`codigo_ibge`, `url`, `rotina`).
+2. Crie a classe em `robo_nfce/rotinas/` herdando de `RotinaEstado` e implemente `_executar_passos(chave, linha)` usando `self.bot` (cliques, `colar_texto`, `selecionar_tudo_e_copiar`, OCR...). Retorne `self._resultado(texto_capturado=..., observacao=...)`.
+3. Registre o nome da rotina em [robo_nfce/rotinas/registro.py](robo_nfce/rotinas/registro.py).
+
+Coordenadas de tela ficam como constantes no topo de cada rotina (ex.: `AREA_CAMPO_CHAVE`).
+
+## Docker (Linux com X11)
+
+Prefira o modo local com `venv`: pyautogui, OCR e clipboard funcionam melhor fora do container. Para Docker:
 
 ```bash
-python3 ler_sped_c100.py arquivo.zip --saida exemplo_entrada.csv
+./scripts/docker-run.sh dados/entrada.csv dados/resultado.csv executar
 ```
+
+Monta `/tmp/.X11-unix` e a pasta `dados/`. Nao funciona em Wayland puro, WSL ou Windows.
+
+## Testes
 
 ```bash
-python3 ler_sped_c100.py "arquivos com espacamento.zip" --saida exemplo_entrada.csv --pasta-txt-filtrados txt_filtrados
+python -m unittest discover -s tests -t .
 ```
-
-O script extrai os `.txt`, le os SPEDs e remove chaves duplicadas no CSV final, mantendo a primeira ocorrencia de cada chave.
-
-O CSV base gerado sai com estas colunas:
-
-- `chave`
-- `numero`
-- `serie`
-- `cod_sit`
-- `data`
-- `valor_total`
-- `tem_itens`
-- `tem_combustivel`
-- `combustiveis`
-- `litros_total`
-- `valor_itens_combustivel`
-
-Quando o SPED tiver registros `C170`, o script usa esses itens para preencher `tem_itens` e os campos de combustivel. Se o arquivo tiver apenas `C100` e `C190`, esses campos ficam vazios ou com `nao`.
-
-## 9. Como transformar `textos_capturados` em `resultado.csv`
-
-Se voce ja tem uma pasta `textos_capturados` com arquivos `.txt`, o `extrator_nfce.py` le esses textos e monta um `resultado.csv`:
-
-```bash
-python3 extrator_nfce.py textos_capturados --saida resultado1.csv
-```
-
-Tambem aceita um `.zip` com os textos capturados:
-
-```bash
-python3 extrator_nfce.py textos_capturados.zip --saida resultado.csv
-```
-
-Ou com caminho contendo espacos:
-
-```bash
-python3 extrator_nfce.py "textos capturados.zip" --saida resultado.csv --pasta-txt-filtrados txt_filtrados
-```
-
-Esse fluxo usa o nome do arquivo `.txt` como chave e extrai:
-
-- `nota_numero`
-- `nota_emissao`
-- `tem_itens`
-- `tem_combustivel`
-- `combustiveis`
-- `litros_total`
-- `valor_itens_combustivel`
-- itens detalhados em linhas expandidas
-
-## 10. Como atualizar um CSV ja existente com os textos capturados
-
-Se voce ja tem um CSV pronto, por exemplo gerado pelo `ler_sped_c100.py`, pode enriquecer esse CSV com os textos que existirem em `textos_capturados`.
-
-Atualizando todas as chaves que tiverem `.txt` correspondente:
-
-```bash
-python3 extrator_nfce.py textos_capturados --csv-base resultado.csv --saida resultado_atualizado.csv
-```
-
-Atualizando apenas as linhas que hoje estao com `tem_itens=nao`:
-
-```bash
-python3 extrator_nfce.py textos_capturados --csv-base resultado.csv --saida resultado_atualizado.csv --somente-sem-itens
-```
-
-Regras desse modo:
-
-- se a chave do CSV nao tiver `.txt`, a linha fica como esta
-- se existir `.txt` para a chave, os campos de NFC-e sao recalculados
-- se houver itens no texto, o script expande a saida em multiplas linhas, uma por item
-- quando usar `--somente-sem-itens`, linhas com `tem_itens=sim` permanecem intactas
-
-## 11. Como dividir um CSV em `entrada_1.csv` e `entrada_2.csv`
-
-Se voce receber um CSV com colunas como:
-
-```text
-chave,numero,serie,cod_sit,data,valor_total,tem_itens,tem_combustivel,combustiveis,litros_total,valor_itens_combustivel,uf,url_consulta,status_robo,arquivo_texto_capturado,observacao,nota_numero,nota_emissao,item_descricao,item_qtde,item_un,item_vl_unit,item_vl_total
-```
-
-e quiser separar apenas as linhas em que:
-
-- `tem_itens=nao`
-- `tem_combustivel=nao`
-
-use:
-
-```bash
-python3 util_csv_chaves.py dividir resultado.csv
-```
-
-Isso gera:
-
-- `entrada_1.csv`
-- `entrada_2.csv`
-
-O script:
-
-- le o CSV informado
-- filtra somente as linhas com os dois campos iguais a `nao`
-- divide o resultado em duas metades
-- deixa a primeira metade em `entrada_1.csv`
-- deixa a segunda metade em `entrada_2.csv`
-
-Se quiser nomes diferentes:
-
-```bash
-python3 util_csv_chaves.py dividir mva31.csv --saida-1 lote_a.csv --saida-2 lote_b.csv
-```
-
-## 12. Como comparar as chaves entre dois CSVs
-
-Para conferir se todas as chaves de um arquivo existem no outro e identificar faltantes:
-
-```bash
-python3 util_csv_chaves.py comparar entrada_1.csv entrada_2.csv --saida comparacao_chaves.csv
-```
-
-O arquivo `comparacao_chaves.csv` sai com as colunas:
-
-- `chave`
-- `status_comparacao`
-- `presente_arquivo_1`
-- `presente_arquivo_2`
-
-Possiveis status:
-
-- `presente_nos_dois`
-- `faltando_no_arquivo_1`
-- `faltando_no_arquivo_2`
-
-Se a coluna da chave tiver outro nome, use por exemplo:
-
-```bash
-python3 util_csv_chaves.py comparar arquivo_a.csv arquivo_b.csv --coluna-chave numero
-```
-
-## 13. Como gerar uma analise so com o que falta no conferido
-
-Se voce quer um CSV contendo apenas as linhas que estao na base mas nao estao no conferido:
-
-```bash
-python3 util_csv_chaves.py analisar-faltantes base.csv conferido.csv --saida analise_faltantes.csv
-```
-
-Nesse comando:
-
-- `base.csv` e o arquivo principal
-- `conferido.csv` e o arquivo usado para verificar se a chave existe
-- `analise_faltantes.csv` recebe somente as linhas da base que nao foram encontradas no conferido
-
-O CSV de saida copia o cabecalho da base exatamente igual, na mesma ordem. Exemplo:
-
-```text
-chave,numero,serie,cod_sit,data,valor_total,tem_itens,tem_combustivel,combustiveis,litros_total,valor_itens_combustivel
-```
-
-## 14. Colunas adicionadas no CSV de saida
-
-O script preserva as colunas originais e adiciona:
-
-- `uf`
-- `url_consulta`
-- `status_robo`
-- `arquivo_texto_capturado`
-- `observacao`
-- `nota_numero`
-- `nota_emissao`
-- `item_descricao`
-- `item_qtde`
-- `item_un`
-- `item_vl_unit`
-- `item_vl_total`
-
-## 15. Dependencias do projeto
-
-Python:
-
-- [requirements.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements.txt)
-- [requirements-audio.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-audio.txt)
-
-Se for instalar manualmente o Playwright:
-
-```bash
-python3 -m pip install playwright
-python3 -m playwright install firefox
-```
-
-Sistema Linux/Ubuntu:
-
-- [requirements-sistema.txt](/home/linx/Documentos/www/web-scraping-NFCE/requirements-sistema.txt)
-
-## 16. Arquivos principais
-
-- [bot_visual.py](/home/linx/Documentos/www/web-scraping-NFCE/bot_visual.py): funcoes base de automacao, OCR e audio
-- [config_ufs.py](/home/linx/Documentos/www/web-scraping-NFCE/config_ufs.py): links e configuracao por estado
-- [rotinas_estaduais.py](/home/linx/Documentos/www/web-scraping-NFCE/rotinas_estaduais.py): roteiro de cada UF
-- [processar_csv.py](/home/linx/Documentos/www/web-scraping-NFCE/processar_csv.py): le o CSV base e chama a rotina certa por UF
-- [ler_sped_c100.py](/home/linx/Documentos/www/web-scraping-NFCE/ler_sped_c100.py): gera o CSV base a partir de arquivo SPED `.txt`, `.zip` ou pasta
-- [extrator_nfce.py](/home/linx/Documentos/www/web-scraping-NFCE/extrator_nfce.py): transforma `textos_capturados` em CSV ou atualiza um CSV existente
-- [util_csv_chaves.py](/home/linx/Documentos/www/web-scraping-NFCE/util_csv_chaves.py): divide CSV filtrando `tem_itens=nao` e `tem_combustivel=nao`, e compara chaves entre arquivos
-- [mouse_posicao.py](/home/linx/Documentos/www/web-scraping-NFCE/mouse_posicao.py): mostra a posicao do mouse para descobrir coordenadas
-- [install_linux.sh](/home/linx/Documentos/www/web-scraping-NFCE/install_linux.sh): instalacao completa no Linux
-- [install_windows.bat](/home/linx/Documentos/www/web-scraping-NFCE/install_windows.bat): instalacao base no Windows
-- [docker-run.sh](/home/linx/Documentos/www/web-scraping-NFCE/docker-run.sh): execucao Docker simplificada no Linux

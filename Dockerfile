@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY robo_nfce ./robo_nfce
 
-CMD ["python3", "processar_csv.py", "exemplo_entrada.csv", "--saida", "resultado.csv", "--modo", "executar"]
+ENTRYPOINT ["python3", "-m", "robo_nfce"]
+CMD ["processar", "dados/exemplo_entrada.csv", "--saida", "dados/resultado.csv", "--modo", "executar"]

@@ -1,83 +1,8 @@
 {
-  "bot_visual.py": {
-    "mtime": 1779311009.2910702,
-    "ast_hash": "e478e708023dba7ea2361161ccaba628",
-    "semantic_hash": "e478e708023dba7ea2361161ccaba628"
-  },
-  "config_ufs.py": {
-    "mtime": 1778607466.7465725,
-    "ast_hash": "992cd9a9e67c52c47b6e65553477932e",
-    "semantic_hash": "992cd9a9e67c52c47b6e65553477932e"
-  },
-  "docker-run.sh": {
-    "mtime": 1778007195.3340352,
-    "ast_hash": "7171c886bb4fc68e15bb83df0f9a48e7",
-    "semantic_hash": "7171c886bb4fc68e15bb83df0f9a48e7"
-  },
-  "escutar.py": {
-    "mtime": 1777576045.324229,
-    "ast_hash": "3bdbe0683e314a721cc107bbb925aaf2",
-    "semantic_hash": "3bdbe0683e314a721cc107bbb925aaf2"
-  },
-  "extrator_nfce.py": {
-    "mtime": 1784649434.3740265,
-    "ast_hash": "1fc6de8b47abec3ca0ba4885b378f59d",
-    "semantic_hash": "1fc6de8b47abec3ca0ba4885b378f59d"
-  },
-  "install_linux.sh": {
-    "mtime": 1778606575.4951055,
-    "ast_hash": "e1a273947c24b084707e799667e31529",
-    "semantic_hash": "e1a273947c24b084707e799667e31529"
-  },
-  "ler_sped_c100.py": {
-    "mtime": 1779799619.4909284,
-    "ast_hash": "e859eb00f0553b29f2955cafc267d3f5",
-    "semantic_hash": "e859eb00f0553b29f2955cafc267d3f5"
-  },
-  "mouse_posicao.py": {
-    "mtime": 1777576044.2552288,
-    "ast_hash": "8f24b7398f687d5999b28d310df0988f",
-    "semantic_hash": "8f24b7398f687d5999b28d310df0988f"
-  },
-  "processar_csv.py": {
-    "mtime": 1779821112.1809492,
-    "ast_hash": "03355f27be5ef06f369c35148a703257",
-    "semantic_hash": "03355f27be5ef06f369c35148a703257"
-  },
-  "rotinas_estaduais.py": {
-    "mtime": 1779316875.7825131,
-    "ast_hash": "ac271fe409b713cf20433d79403bd038",
-    "semantic_hash": "ac271fe409b713cf20433d79403bd038"
-  },
-  "rotinas_estaduais_teste.py": {
-    "mtime": 1779317002.7397969,
-    "ast_hash": "8ebf26282baad22e904fc1e40c996373",
-    "semantic_hash": "8ebf26282baad22e904fc1e40c996373"
-  },
-  "setup_venv.sh": {
-    "mtime": 1778007195.6592553,
-    "ast_hash": "5f9d1fce5728242b4f9fa0d35e9545f6",
-    "semantic_hash": "5f9d1fce5728242b4f9fa0d35e9545f6"
-  },
-  "test_processar_csv.py": {
-    "mtime": 1784649434.626026,
-    "ast_hash": "cd3c5e80fe3bf0740f6a88ed39f2e9ed",
-    "semantic_hash": "cd3c5e80fe3bf0740f6a88ed39f2e9ed"
-  },
-  "test_util_csv_chaves.py": {
-    "mtime": 1782405398.7698975,
-    "ast_hash": "7a4beec450f40cd3e6e7dded530b640f",
-    "semantic_hash": "7a4beec450f40cd3e6e7dded530b640f"
-  },
-  "util_csv_chaves.py": {
-    "mtime": 1782405398.4798973,
-    "ast_hash": "50cd5fa4418ec3d3f52f8981cc9195f4",
-    "semantic_hash": "50cd5fa4418ec3d3f52f8981cc9195f4"
-  },
   "README.md": {
-    "mtime": 1782405498.8382843,
-    "ast_hash": "583d155542e8d4c0cedc50d96ca92f78",
-    "semantic_hash": "583d155542e8d4c0cedc50d96ca92f78"
+    "mtime": 1794353214.1728039,
+    "ast_hash": "a75cbce08c690a6aaab1d47cfbef9312",
+    "semantic_hash": ""
   },
   "requirements-audio.txt": {
     "mtime": 1777576847.5481632,
@@ -93,5 +18,265 @@
     "mtime": 1778606339.1651862,
     "ast_hash": "80c19cab951a03277919af576dd659ab",
     "semantic_hash": "80c19cab951a03277919af576dd659ab"
+  },
+  "experimentos/rotinas_playwright.py": {
+    "mtime": 1794353074.1320302,
+    "ast_hash": "87dff815e9fc75b51008535f8b97cf36",
+    "semantic_hash": ""
+  },
+  "pyproject.toml": {
+    "mtime": 1794353158.9885347,
+    "ast_hash": "ac557e99c42277ff586f6b4ff192afb8",
+    "semantic_hash": ""
+  },
+  "robo_nfce/__init__.py": {
+    "mtime": 1794352674.8444774,
+    "ast_hash": "22cce0f852beb7f2b414e75aeb9662ea",
+    "semantic_hash": ""
+  },
+  "robo_nfce/__main__.py": {
+    "mtime": 1794352675.6813629,
+    "ast_hash": "a5b7db24c3dcdde5934d421ded297994",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/__init__.py": {
+    "mtime": 1794352836.0630608,
+    "ast_hash": "5bd1b93c5dad05f2b3f85dddd657631b",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/area_transferencia.py": {
+    "mtime": 1794352836.8880656,
+    "ast_hash": "7cdf1563fcf407f92fa8099f0f16c76a",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/audio.py": {
+    "mtime": 1794352841.1290905,
+    "ast_hash": "f2b691fad5196313f49dd835434fc395",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/mouse.py": {
+    "mtime": 1794352837.7030704,
+    "ast_hash": "f25bb536649c576bfb6d5601e70e360e",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/navegador.py": {
+    "mtime": 1794352839.3960805,
+    "ast_hash": "da8d67668aaa1e5a52cd2b347a148273",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/teclado.py": {
+    "mtime": 1794352838.5640755,
+    "ast_hash": "fbb5243ca75d3ceaf8b742fce63f6765",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/tela.py": {
+    "mtime": 1794352840.2030852,
+    "ast_hash": "87d56e989e81afbb0eabb5e84a803643",
+    "semantic_hash": ""
+  },
+  "robo_nfce/bot/visual.py": {
+    "mtime": 1794352841.9910958,
+    "ast_hash": "532e4805437cb002425508d1db570d56",
+    "semantic_hash": ""
+  },
+  "robo_nfce/cli.py": {
+    "mtime": 1794353010.7070875,
+    "ast_hash": "fef4c69cfbd08f524c141a5f64f07501",
+    "semantic_hash": ""
+  },
+  "robo_nfce/config.py": {
+    "mtime": 1794352679.7265632,
+    "ast_hash": "ff765e9b8087092252e3443067d0c382",
+    "semantic_hash": ""
+  },
+  "robo_nfce/csv_chaves.py": {
+    "mtime": 1794353170.328597,
+    "ast_hash": "8db514d548a0260e6b463af5efa61580",
+    "semantic_hash": ""
+  },
+  "robo_nfce/extracao/__init__.py": {
+    "mtime": 1794352731.8846543,
+    "ast_hash": "8d56ccb255a7187e5dae53bcd5ec9b1b",
+    "semantic_hash": ""
+  },
+  "robo_nfce/extracao/combustivel.py": {
+    "mtime": 1794352733.4934657,
+    "ast_hash": "d850ee619eb34d7e695e53acb97cb89c",
+    "semantic_hash": ""
+  },
+  "robo_nfce/extracao/formatacao.py": {
+    "mtime": 1794352732.6975975,
+    "ast_hash": "8f1fdd94e1bba543f9874e5205837961",
+    "semantic_hash": ""
+  },
+  "robo_nfce/extracao/linhas.py": {
+    "mtime": 1794352735.093599,
+    "ast_hash": "98fb78e23601d9e11ad588c95ab43e7f",
+    "semantic_hash": ""
+  },
+  "robo_nfce/extracao/nfce.py": {
+    "mtime": 1794352734.2964725,
+    "ast_hash": "57a2b09b75941c169b7797e1774c820f",
+    "semantic_hash": ""
+  },
+  "robo_nfce/extracao/textos_capturados.py": {
+    "mtime": 1794352735.8813374,
+    "ast_hash": "6e983dbcfe2eca2d70892c7ac7dd0bea",
+    "semantic_hash": ""
+  },
+  "robo_nfce/ferramentas/__init__.py": {
+    "mtime": 1794353011.5509908,
+    "ast_hash": "8b9d22d91838a7cdc30aadfcad4ef757",
+    "semantic_hash": ""
+  },
+  "robo_nfce/ferramentas/escutar_microfone.py": {
+    "mtime": 1794353013.2519572,
+    "ast_hash": "986acc377487af63e9d0ff4887cbfa86",
+    "semantic_hash": ""
+  },
+  "robo_nfce/ferramentas/posicao_mouse.py": {
+    "mtime": 1794353012.4280634,
+    "ast_hash": "3156732b376920d805b606b5de0c575a",
+    "semantic_hash": ""
+  },
+  "robo_nfce/processamento/__init__.py": {
+    "mtime": 1794352967.5858707,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "robo_nfce/processamento/lote.py": {
+    "mtime": 1794352976.1518915,
+    "ast_hash": "8d5228f5d6c07b0df244c6fbdcb70318",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/__init__.py": {
+    "mtime": 1794352936.5667956,
+    "ast_hash": "3ae21c684a1bbedefa754aaec446dd8d",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/audio.py": {
+    "mtime": 1794352935.7847936,
+    "ast_hash": "7744a0ee6573e711d0d8a8f03d463b0e",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/base.py": {
+    "mtime": 1794352930.9030967,
+    "ast_hash": "6be77032041aa2e68284674d3fe4fae4",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/es.py": {
+    "mtime": 1794352934.2253926,
+    "ast_hash": "011f8cd92bf77b3bb1d2dcd618f4c84b",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/mg/__init__.py": {
+    "mtime": 1794352932.6107724,
+    "ast_hash": "58f1f042281cccaa309898d7f79d6de7",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/mg/classificacao.py": {
+    "mtime": 1794352931.693765,
+    "ast_hash": "25b829450e4c9088635c6dfc2889e0f5",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/mg/rotina.py": {
+    "mtime": 1794352933.4287791,
+    "ast_hash": "c6a7d612b5d19bd4ff221820e5bc1dbd",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/registro.py": {
+    "mtime": 1794352937.3527973,
+    "ast_hash": "f0fb15825bebe066901a944a1b235b4b",
+    "semantic_hash": ""
+  },
+  "robo_nfce/rotinas/rj.py": {
+    "mtime": 1794352935.0037916,
+    "ast_hash": "0810c16651899226b80a41c612c20ac4",
+    "semantic_hash": ""
+  },
+  "robo_nfce/sped/__init__.py": {
+    "mtime": 1794352777.4997616,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "robo_nfce/sped/arquivos.py": {
+    "mtime": 1794352779.9379401,
+    "ast_hash": "0577e3f820c2b72168a7dffab33fc184",
+    "semantic_hash": ""
+  },
+  "robo_nfce/sped/modelos.py": {
+    "mtime": 1794352785.6274765,
+    "ast_hash": "0687394ad4925e5ab9c17866b1f26597",
+    "semantic_hash": ""
+  },
+  "robo_nfce/sped/parser.py": {
+    "mtime": 1794352779.102701,
+    "ast_hash": "6341d3ebeb9ba3088479bebfc1a72c6e",
+    "semantic_hash": ""
+  },
+  "robo_nfce/utils/__init__.py": {
+    "mtime": 1794352676.5005612,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "robo_nfce/utils/arquivos.py": {
+    "mtime": 1794352678.921563,
+    "ast_hash": "43d044b0129830e5ebe1520f31275196",
+    "semantic_hash": ""
+  },
+  "robo_nfce/utils/csv_io.py": {
+    "mtime": 1794352678.1164384,
+    "ast_hash": "7da760c25d38ffec2f7a515b84de46e4",
+    "semantic_hash": ""
+  },
+  "robo_nfce/utils/texto.py": {
+    "mtime": 1794352731.0685964,
+    "ast_hash": "d473faec6919faa3e58b33374528888a",
+    "semantic_hash": ""
+  },
+  "scripts/docker-run.sh": {
+    "mtime": 1794353151.274492,
+    "ast_hash": "6424237bd49906c2c9b19ba9731e339a",
+    "semantic_hash": ""
+  },
+  "scripts/install_linux.sh": {
+    "mtime": 1794353151.282511,
+    "ast_hash": "a5b651a29ff15212427136c8c68cea6f",
+    "semantic_hash": ""
+  },
+  "scripts/setup_venv.sh": {
+    "mtime": 1794353151.2854922,
+    "ast_hash": "5f9d1fce5728242b4f9fa0d35e9545f6",
+    "semantic_hash": ""
+  },
+  "tests/__init__.py": {
+    "mtime": 1794353059.865163,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "tests/test_csv_chaves.py": {
+    "mtime": 1794353074.1212656,
+    "ast_hash": "8ab22f14f584008435c749ab9f1d57c8",
+    "semantic_hash": ""
+  },
+  "tests/test_extracao_nfce.py": {
+    "mtime": 1794353061.551169,
+    "ast_hash": "742a3dafdd824796be36c18b93d6e8af",
+    "semantic_hash": ""
+  },
+  "tests/test_mg_classificacao.py": {
+    "mtime": 1794353062.4921725,
+    "ast_hash": "1704d5e7e7c06a5167ce9fccecd416e1",
+    "semantic_hash": ""
+  },
+  "tests/test_processamento.py": {
+    "mtime": 1794353060.7190378,
+    "ast_hash": "b749a3d36341f240c5addb72d1f800bc",
+    "semantic_hash": ""
+  },
+  "tests/test_sped.py": {
+    "mtime": 1794353063.3502586,
+    "ast_hash": "3d605abaf102f4fc630f96a1378f8e36",
+    "semantic_hash": ""
   }
 }

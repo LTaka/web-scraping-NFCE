@@ -4,5 +4,7 @@ __pycache__
 *.pyc
 *.pyo
 *.png
-resultado.csv
-textos_capturados
+dados
+graphify-out
+experimentos
+tests

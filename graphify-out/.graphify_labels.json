@@ -1,1 +1,27 @@
-{"0": "State configuration", "1": "Visual automation", "2": "NFC-e extraction", "3": "Minas Gerais routine", "4": "SPED import", "5": "CSV batch processing", "6": "CSV key utilities", "7": "CSV utility tests", "8": "Retry workflow tests", "9": "Docker runner", "10": "Linux installation", "11": "Mouse helper", "12": "Virtual environment setup"}
+{
+  "0": "State configuration",
+  "1": "Visual automation",
+  "2": "NFC-e extraction",
+  "3": "Minas Gerais routine",
+  "4": "SPED import",
+  "5": "CSV batch processing",
+  "6": "CSV key utilities",
+  "7": "CSV utility tests",
+  "8": "Retry workflow tests",
+  "9": "Docker runner",
+  "10": "Linux installation",
+  "11": "Mouse helper",
+  "12": "Virtual environment setup",
+  "13": "UtilCsvChavesTests",
+  "14": "posicao_mouse.py",
+  "15": "__init__.py",
+  "16": "__init__.py",
+  "17": "__init__.py",
+  "18": "docker-run.sh",
+  "19": "install_linux.sh",
+  "20": "setup_venv.sh",
+  "21": "__init__.py",
+  "22": "__init__.py",
+  "23": "__init__.py",
+  "24": "__init__.py"
+}

@@ -1,11 +1,23 @@
+# Python
 .venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
 
-resultado.csv
+# Dados locais (entradas, saidas, textos capturados)
+dados/*
+!dados/.gitkeep
+*_txt_filtrados/
+resultado*.csv
 textos_capturados/
+
+# Screenshots/OCR gerados pelo robo
 *.png
 
+# Ferramentas locais
+graphify-out/
+.codex
 .DS_Store

@@ -52,7 +52,7 @@ def comparar_chaves_csv(
     chaves_2 = coletar_chaves(linhas_comparacao, coluna_chave)
 
     linhas_saida = []
-    contagem = {"presentes_nos_dois": 0, "faltando_no_arquivo_1": 0, "faltando_no_arquivo_2": 0}
+    contagem = {"presente_nos_dois": 0, "faltando_no_arquivo_1": 0, "faltando_no_arquivo_2": 0}
 
     for chave in sorted(chaves_1 | chaves_2):
         no_1 = chave in chaves_1
@@ -79,7 +79,13 @@ def comparar_chaves_csv(
         delimitador,
     )
 
-    return {"arquivo_1": len(chaves_1), "arquivo_2": len(chaves_2), **contagem}
+    return {
+        "arquivo_1": len(chaves_1),
+        "arquivo_2": len(chaves_2),
+        "presentes_nos_dois": contagem["presente_nos_dois"],
+        "faltando_no_arquivo_1": contagem["faltando_no_arquivo_1"],
+        "faltando_no_arquivo_2": contagem["faltando_no_arquivo_2"],
+    }
 
 
 def gerar_analise_faltantes_da_base(

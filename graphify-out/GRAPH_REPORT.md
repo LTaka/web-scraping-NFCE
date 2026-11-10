@@ -1,12 +1,18 @@
-# Graph Report - .  (2026-07-21)
+# Graph Report - web-scraping-NFCE  (2026-11-10)
 
 ## Corpus Check
-- Corpus is ~11,232 words - fits in a single context window. You may not need a graph.
+- 53 files · ~11,182 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 248 nodes · 575 edges · 13 communities (7 shown, 6 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 40 edges (avg confidence: 0.52)
+- 388 nodes · 783 edges · 25 communities (17 shown, 8 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 44 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `73642aad`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_State configuration|State configuration]]
@@ -20,80 +26,117 @@
 - [[_COMMUNITY_Retry workflow tests|Retry workflow tests]]
 - [[_COMMUNITY_Docker runner|Docker runner]]
 - [[_COMMUNITY_Linux installation|Linux installation]]
+- [[_COMMUNITY_Mouse helper|Mouse helper]]
 - [[_COMMUNITY_Virtual environment setup|Virtual environment setup]]
+- [[_COMMUNITY_UtilCsvChavesTests|UtilCsvChavesTests]]
+- [[_COMMUNITY_posicao_mouse.py|posicao_mouse.py]]
+- [[_COMMUNITY___init__.py|__init__.py]]
+- [[_COMMUNITY___init__.py|__init__.py]]
+- [[_COMMUNITY___init__.py|__init__.py]]
+- [[_COMMUNITY_docker-run.sh|docker-run.sh]]
+- [[_COMMUNITY_install_linux.sh|install_linux.sh]]
+- [[_COMMUNITY_setup_venv.sh|setup_venv.sh]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `BotVisual` - 70 edges
-2. `RotinaMGPadrao` - 31 edges
-3. `ConfigUF` - 21 edges
-4. `extrair_campos_nfce()` - 17 edges
-5. `RotinaEstado` - 15 edges
-6. `processar_csv()` - 13 edges
-7. `RotinaEstado` - 13 edges
-8. `criar_rotina()` - 11 edges
-9. `RotinaESPadrao` - 9 edges
-10. `RotinaESPadrao` - 9 edges
+1. `BotVisual` - 29 edges
+2. `RotinaEstado` - 24 edges
+3. `extrair_campos_nfce()` - 22 edges
+4. `ConfigUF` - 21 edges
+5. `RotinaMGPadrao` - 19 edges
+6. `TecladoMixin` - 16 edges
+7. `RotinaEstado` - 15 edges
+8. `MouseMixin` - 14 edges
+9. `TelaMixin` - 14 edges
+10. `processar_csv()` - 14 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `ResultadoProcessamento` --uses--> `BotVisual`  [INFERRED]
-  processar_csv.py → bot_visual.py
-- `RotinaBAComAudio` --uses--> `BotVisual`  [INFERRED]
-  rotinas_estaduais.py → bot_visual.py
-- `RotinaESPadrao` --uses--> `BotVisual`  [INFERRED]
-  rotinas_estaduais.py → bot_visual.py
 - `RotinaEstado` --uses--> `BotVisual`  [INFERRED]
-  rotinas_estaduais.py → bot_visual.py
+  experimentos/rotinas_playwright.py → robo_nfce/bot/visual.py
+- `RotinaEstado` --uses--> `ConfigUF`  [INFERRED]
+  experimentos/rotinas_playwright.py → robo_nfce/config.py
+- `RotinaMGPlaywright` --uses--> `BotVisual`  [INFERRED]
+  experimentos/rotinas_playwright.py → robo_nfce/bot/visual.py
+- `RotinaMGPlaywright` --uses--> `ConfigUF`  [INFERRED]
+  experimentos/rotinas_playwright.py → robo_nfce/config.py
 - `RotinaMGPadrao` --uses--> `BotVisual`  [INFERRED]
-  rotinas_estaduais.py → bot_visual.py
+  experimentos/rotinas_playwright.py → robo_nfce/bot/visual.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (13 total, 6 thin omitted)
+## Communities (25 total, 8 thin omitted)
 
 ### Community 0 - "State configuration"
-Cohesion: 0.10
-Nodes (21): ABC, ConfigUF, extrair_codigo_estado(), obter_config_por_chave(), criar_rotina(), RotinaBAComAudio, RotinaESPadrao, RotinaEstado (+13 more)
+Cohesion: 0.11
+Nodes (15): ABC, Modelo de rotina com captcha de audio (ainda nao calibrada).      Fluxo esperado, RotinaBAComAudio, RotinaSPComAudio, Fluxo base: prepara a pagina da UF e executa os passos da consulta de uma chave., Abre a URL da UF na primeira chave e recarrega nas seguintes., RotinaEstado, Consulta no portal do ES: sucesso = URL mudar para a pagina do DANFE. (+7 more)
 
 ### Community 1 - "Visual automation"
 Cohesion: 0.10
-Nodes (3): BotVisual, roteiro_exemplo(), roteiro_exemplo()
+Nodes (34): analisar_nome_arquivo_sped(), carregar_notas_de_entrada(), deduplicar_notas_por_chave(), _filtrar_nomes_por_periodo(), gerar_csv_base_do_sped(), Path, Selecao de arquivos SPED (.txt, .zip ou pasta) e conversao para o CSV base., Converte SPED (.txt, .zip ou pasta) no CSV base do robo. Retorna o total de nota (+26 more)
 
 ### Community 2 - "NFC-e extraction"
 Cohesion: 0.11
-Nodes (33): _aplicar_campos_nfce_na_linha(), atualizar_csv_existente_com_textos(), br_decimal(), carregar_textos_por_chave(), criar_parser(), decimal_br(), _deduplicar_itens(), dinheiro_br() (+25 more)
+Nodes (28): descricao_tem_combustivel(), eh_item_combustivel(), limpar_descricao_combustivel(), Regras para identificar itens de combustivel., Combustivel = descricao com nome de combustivel E unidade de volume.      Evita, br_decimal(), decimal_br(), dinheiro_br() (+20 more)
+
+### Community 3 - "Minas Gerais routine"
+Cohesion: 0.13
+Nodes (16): consultar_com_retry(), consultar_nfce_mg(), _consultar_nfce_mg_em_pagina(), criar_rotina(), RotinaBAComAudio, RotinaESPadrao, RotinaEstado, RotinaMGPadrao (+8 more)
 
 ### Community 4 - "SPED import"
-Cohesion: 0.18
-Nodes (24): analisar_nome_arquivo_sped(), carregar_notas_de_entrada(), criar_parser(), deduplicar_notas_por_chave(), eh_combustivel(), escrever_csv(), extrair_txts_selecionados_de_zip(), formatar_data_sped() (+16 more)
+Cohesion: 0.10
+Nodes (14): Screenshots, OCR e esperas baseadas no conteudo da tela., Hash de uma miniatura em tons de cinza: muda quando a tela muda., Tenta Ctrl+A/Ctrl+C; se vier pouco texto, cai para OCR rolando a pagina., TelaMixin, classificar_estado_pagina(), eh_pagina_erro(), eh_pagina_inicial(), eh_resultado() (+6 more)
 
 ### Community 5 - "CSV batch processing"
-Cohesion: 0.19
-Nodes (22): DictReader, _aguardar_preparacao_inicial(), _aplicar_campos_nfce_na_linha(), _calcular_total_tentativas(), _carregar_linhas_entrada(), _criar_contexto_lote(), criar_parser(), _deve_repetir_por_sem_itens() (+14 more)
+Cohesion: 0.12
+Nodes (29): DictReader, extrair_codigo_estado(), obter_config_por_chave(), Configuracao das UFs suportadas (codigo IBGE -> URL e rotina)., aplicar_campos_nfce(), _com_item(), expandir_por_itens(), Aplicacao dos campos extraidos da NFC-e nas linhas do CSV. (+21 more)
 
 ### Community 6 - "CSV key utilities"
-Cohesion: 0.40
-Nodes (12): coletar_chaves(), comparar_chaves_csv(), criar_parser(), dividir_csv_filtrado(), dividir_lista_ao_meio(), escrever_csv(), filtrar_linhas_sem_itens_e_sem_combustivel(), gerar_analise_faltantes_da_base() (+4 more)
+Cohesion: 0.09
+Nodes (8): Clipboard com fallback para tkinter quando o pyperclip nao tem backend., AudioMixin, Reconhecimento de voz (Google Speech) a partir de arquivo ou microfone., MouseMixin, Move em curva suave com pequenos desvios aleatorios, simulando um humano., Movimentos e cliques. Espera que a classe final defina `esperar`., NavegadorMixin, Acoes na barra de endereco do navegador ja aberto e focado.
+
+### Community 7 - "CSV utility tests"
+Cohesion: 0.14
+Nodes (25): coletar_chaves(), comparar_chaves_csv(), dividir_csv_filtrado(), dividir_lista_ao_meio(), filtrar_linhas_sem_itens_e_sem_combustivel(), gerar_analise_faltantes_da_base(), Path, Ferramentas para dividir CSVs e comparar chaves entre arquivos. (+17 more)
+
+### Community 8 - "Retry workflow tests"
+Cohesion: 0.24
+Nodes (16): ArgumentParser, _caminho_opcional(), _cmd_csv_analisar(), _cmd_csv_comparar(), _cmd_csv_dividir(), _cmd_extrair(), _cmd_processar(), _cmd_sped() (+8 more)
+
+### Community 9 - "Docker runner"
+Cohesion: 0.22
+Nodes (3): Consulta no portal de MG: valida cada etapa pelo texto copiado da pagina (Ctrl+A, Preenche a chave conforme o layout atual e retorna o ponto do botao consultar., RotinaMGPadrao
+
+### Community 10 - "Linux installation"
+Cohesion: 0.12
+Nodes (16): 1. SPED -> CSV base, 2. Consultar as chaves (robo), 3. Textos capturados -> CSV, 4. Ferramentas de CSV, 5. Calibracao, Adicionar ou ajustar uma UF, Audio (opcional), Como pacote (opcional) (+8 more)
+
+### Community 11 - "Mouse helper"
+Cohesion: 0.20
+Nodes (4): Cola via clipboard; se indisponivel, digita caractere a caractere., Como `escrever`, mas falha se nao conseguir usar o clipboard., Teclado, colagem e copia. Espera `esperar`, `clicar`, `arrastar` e `mover_e_clic, TecladoMixin
+
+### Community 12 - "Virtual environment setup"
+Cohesion: 0.21
+Nodes (4): FiltroEntradaTests, _resposta(), RetentativaTests, RotinaSequencialStub
 
 ## Knowledge Gaps
-- **4 isolated node(s):** `docker-run.sh script`, `install_linux.sh script`, `setup_venv.sh script`, `BotVisualStub`
+- **16 isolated node(s):** `docker-run.sh script`, `install_linux.sh script`, `setup_venv.sh script`, `Estrutura`, `Linux (Ubuntu/Debian)` (+11 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `BotVisual` connect `Visual automation` to `State configuration`, `Minas Gerais routine`, `CSV batch processing`?**
-  _High betweenness centrality (0.366) - this node is a cross-community bridge._
-- **Why does `RotinaMGPadrao` connect `Minas Gerais routine` to `State configuration`, `Visual automation`?**
-  _High betweenness centrality (0.149) - this node is a cross-community bridge._
-- **Why does `processar_csv()` connect `CSV batch processing` to `Retry workflow tests`, `Visual automation`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
-- **Are the 14 inferred relationships involving `BotVisual` (e.g. with `ResultadoProcessamento` and `RotinaBAComAudio`) actually correct?**
-  _`BotVisual` has 14 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 3 inferred relationships involving `RotinaMGPadrao` (e.g. with `criar_rotina()` and `BotVisual`) actually correct?**
-  _`RotinaMGPadrao` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 13 inferred relationships involving `ConfigUF` (e.g. with `RotinaBAComAudio` and `RotinaESPadrao`) actually correct?**
-  _`ConfigUF` has 13 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 2 inferred relationships involving `RotinaEstado` (e.g. with `BotVisual` and `ConfigUF`) actually correct?**
-  _`RotinaEstado` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `BotVisual` connect `Minas Gerais routine` to `State configuration`, `SPED import`, `CSV batch processing`, `CSV key utilities`, `Mouse helper`?**
+  _High betweenness centrality (0.288) - this node is a cross-community bridge._
+- **Why does `RotinaEstado` connect `State configuration` to `Docker runner`, `Minas Gerais routine`, `CSV batch processing`?**
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+- **Why does `escrever_csv()` connect `CSV utility tests` to `Visual automation`, `CSV batch processing`?**
+  _High betweenness centrality (0.123) - this node is a cross-community bridge._
+- **Are the 15 inferred relationships involving `BotVisual` (e.g. with `RotinaBAComAudio` and `RotinaESPadrao`) actually correct?**
+  _`BotVisual` has 15 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 8 inferred relationships involving `RotinaEstado` (e.g. with `ContextoLote` and `ResultadoProcessamento`) actually correct?**
+  _`RotinaEstado` has 8 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 10 inferred relationships involving `ConfigUF` (e.g. with `RotinaBAComAudio` and `RotinaESPadrao`) actually correct?**
+  _`ConfigUF` has 10 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `Robo de consulta de NFC-e por UF e ferramentas de extracao/SPED.`, `Automacao visual (mouse, teclado, clipboard, OCR e audio).  Importe `BotVisual``, `Clipboard com fallback para tkinter quando o pyperclip nao tem backend.` to the rest of the system?**
+  _77 weakly-connected nodes found - possible documentation gaps or missing edges._
